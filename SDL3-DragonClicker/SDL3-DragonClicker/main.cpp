@@ -21,23 +21,66 @@
 #include <algorithm>
 
 // Rozmiar okna
-static int WINDOW_WIDTH = 1920;
-static int WINDOW_HEIGHT = 1080;
+static int WINDOW_WIDTH = 1280;
+static int WINDOW_HEIGHT = 720;
 
  /* We will use this renderer to draw into this window every frame. */
 static SDL_Window* window = NULL;
 static SDL_Renderer* renderer = NULL;
 static SDL_Texture* texture = NULL;
+static SDL_Texture* incrementValueTexture = NULL;
+static SDL_Texture* healthValueTexture = NULL;
 static TTF_Font* font = NULL;
 TTF_Font* incrementValueFont = NULL;
-SDL_Texture* incrementValueTexture = NULL;
 
-SDL_FRect clickField;
-
-long double score = {0.00};
 long int incrementScore = 1;
+long double score = {0.00};
 std::string s_score = std::to_string(score);
 Uint32 lastIncrementTime = 0; // Czas ostatniej aktualizacji
+
+class Dragon
+{
+public:
+    long double health = 100;
+    long double baseHealth = 100;
+    double dragonSlayedPrice = 200;
+
+    Dragon()
+    {
+        float clickFieldSizePercentage = 0.75f; // wielkoœæ pola
+        float squareSize = std::min(WINDOW_WIDTH, WINDOW_HEIGHT) * clickFieldSizePercentage; // obliczanie wielkoœci wzglêdem ekranu (float)
+        clickField = { (WINDOW_WIDTH - squareSize) / 2.0f, (WINDOW_HEIGHT - squareSize) / 2.0f, squareSize, squareSize }; // pozycja jako float
+    }
+
+    void render(SDL_Renderer* renderer)
+    {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+        SDL_RenderFillRect(renderer, &clickField);
+    }
+
+    float getX() const { return clickField.x; }
+    float getY() const { return clickField.y; }
+    float getW() const { return clickField.w; }
+    float getH() const { return clickField.h; }
+
+private:
+    SDL_FRect clickField;
+};
+
+std::vector<Dragon> dragons;
+
+void createDragons()
+{
+    dragons.emplace_back();
+}
+
+void renderDragons(SDL_Renderer* renderer)
+{
+    for (auto& dragon : dragons)
+    {
+        dragon.render(renderer);
+    }
+}
 
 class UpgradeButton
 {
@@ -194,7 +237,7 @@ void renderScoreText()
     dst.w = w;
     dst.h = h;
     dst.x = (WINDOW_WIDTH - w) / 2; // centrowanie
-    dst.y = 50;
+    dst.y = (WINDOW_HEIGHT * 0.02f);
 
     SDL_RenderTexture(renderer, texture, NULL, &dst);
 }
@@ -210,19 +253,63 @@ void renderIncrementValueText()
     dst.w = w;
     dst.h = h;
     dst.x = (WINDOW_WIDTH - w) / 2; // Centrowanie
-    dst.y = 100;  // Poni¿ej g³ównego tekstu, zmniejszaj¹c y
+    dst.y = (WINDOW_HEIGHT * 0.075f);  // Poni¿ej g³ównego tekstu, zmniejszaj¹c y
 
     SDL_RenderTexture(renderer, incrementValueTexture, NULL, &dst);
 }
 
-void renderClickField()
+void updateHealthValueText()
 {
-    float clickFieldSizePercentage = 0.75f; // wielkoœæ pola
-    float squareSize = std::min(WINDOW_WIDTH, WINDOW_HEIGHT) * clickFieldSizePercentage; // obliczanie wielkoœci wzglêdem ekranu (float)
-    clickField = { (WINDOW_WIDTH - squareSize) / 2.0f, (WINDOW_HEIGHT - squareSize) / 2.0f, squareSize, squareSize }; // pozycja jako float
+    float healthValue{};
 
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-    SDL_RenderFillRect(renderer, &clickField);
+    for (auto& dragon : dragons)
+    {
+        healthValue = dragon.health;
+    }
+
+    if (healthValueTexture)
+    {
+        SDL_DestroyTexture(healthValueTexture); // Usuwamy star¹ teksturê
+        healthValueTexture = NULL;
+    }
+
+    std::ostringstream stream;
+
+    if (healthValue == 0)
+    {
+        stream << "Dragon has been slayed!";
+    }
+
+    else
+    {
+        stream << "HP: " << std::fixed << std::setprecision(2) << healthValue;
+    }
+    std::string incrementValueS = stream.str();
+
+    SDL_Color color = { 0, 0, 0, 255 };
+    SDL_Surface* text = TTF_RenderText_Blended(incrementValueFont, incrementValueS.c_str(), 0, color);
+
+    if (text)
+    {
+        healthValueTexture = SDL_CreateTextureFromSurface(renderer, text);
+        SDL_DestroySurface(text);
+    }
+}
+
+void renderHealthValueText()
+{
+    if (!healthValueTexture) return;
+
+    float w = 0, h = 0;
+    SDL_GetTextureSize(healthValueTexture, &w, &h);
+
+    SDL_FRect dst;
+    dst.w = w;
+    dst.h = h;
+    dst.x = (WINDOW_WIDTH - w) / 2; // centrowanie
+    dst.y = (WINDOW_HEIGHT * 0.90f);
+
+    SDL_RenderTexture(renderer, healthValueTexture, NULL, &dst);
 }
 
 /* This function runs once at startup. */
@@ -280,6 +367,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 
     updateScoreText();
     createButtons();
+    createDragons();
 
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
@@ -297,11 +385,26 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
         float mouseX, mouseY;
         SDL_GetMouseState(&mouseX, &mouseY);
 
-        if (mouseX >= clickField.x && mouseX <= clickField.x + clickField.w &&
-            mouseY >= clickField.y && mouseY <= clickField.y + clickField.h)
+        for (auto& dragon : dragons)
         {
-            score += incrementScore;
-            updateScoreText();
+            if (mouseX >= dragon.getX() && mouseX <= dragon.getX() + dragon.getW() &&
+                mouseY >= dragon.getY() && mouseY <= dragon.getY() + dragon.getH())
+            {
+                std::cout << "Dragon health: " << dragon.health << std::endl;
+
+                if (dragon.health <= 0)
+                {
+                    std::cout << "You slayed a dragon!" << std::endl;
+                    dragon.health = dragon.baseHealth * 1.5f;
+                    dragon.baseHealth = dragon.health;
+                    score += dragon.dragonSlayedPrice;
+                    dragon.dragonSlayedPrice *= 1.25f;
+                }
+
+                score += incrementScore;
+                dragon.health -= incrementScore;
+                updateScoreText();
+            }
         }
 
         for (auto& button : buttons)
@@ -313,7 +416,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
                 {
                     button.isObjectUpgrading = true;
                     UpgradeButton::lastUpdateTime = SDL_GetTicks(); // Resetujemy czas
-                    std::cout << "Ulepszanie aktywowane!" << std::endl;
+                    // std::cout << "Ulepszanie aktywowane!" << std::endl;
                 }
                 else
                 {
@@ -327,7 +430,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
                         score -= button.upgradeCost;
                         button.upgradeScoreValue(); // Zwiêkszamy incrementValue
                         button.upgradeCost *= 1.2f;  // Zwiêkszamy koszt ulepszania
-                        std::cout << "1 - Cost: " << button.upgradeCost << " Increment value: " << button.getIncrementValue() << "\n";
+                        // std::cout << "1 - Cost: " << button.upgradeCost << " Increment value: " << button.getIncrementValue() << "\n";
                     }
                 }
             }
@@ -349,7 +452,9 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
 
-    renderClickField();
+    renderDragons(renderer);
+    renderHealthValueText();
+    updateHealthValueText();
     renderScoreText();
     renderIncrementValueText();
     renderButtons(renderer);
@@ -361,9 +466,9 @@ SDL_AppResult SDL_AppIterate(void* appstate)
         {
             if (button.isActive())
             {
-                std::cout << "Before increment: score = " << score << ", incrementValue = " << button.getIncrementValue() << std::endl;
+                // std::cout << "Before increment: score = " << score << ", incrementValue = " << button.getIncrementValue() << std::endl;
                 button.incrementScore(); // Zwiêkszamy wynik
-                std::cout << "After increment: score = " << score << std::endl;
+                //std::cout << "After increment: score = " << score << std::endl;
                 lastUpdateTime = currentTime;
             }
         }
