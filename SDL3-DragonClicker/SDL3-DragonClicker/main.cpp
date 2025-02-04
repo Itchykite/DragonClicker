@@ -21,8 +21,8 @@
 #include <algorithm>
 
 // Rozmiar okna
-static int WINDOW_WIDTH = 1280;
-static int WINDOW_HEIGHT = 720;
+static int WINDOW_WIDTH = 1920;
+static int WINDOW_HEIGHT = 1080;
 
  /* We will use this renderer to draw into this window every frame. */
 static SDL_Window* window = NULL;
@@ -312,6 +312,27 @@ void renderHealthValueText()
     SDL_RenderTexture(renderer, healthValueTexture, NULL, &dst);
 }
 
+void renderHealthBar(Dragon& dragon, SDL_Renderer* renderer)
+{
+    float barHeight = 20.0f; // Wysokoœæ paska zdrowia
+    float barWidth = WINDOW_WIDTH * 0.5f; // Szerokoœæ paska zdrowia bêdzie 50% szerokoœci okna
+
+    float healthPercentage = dragon.health / dragon.baseHealth;
+    float currentBarWidth = barWidth * healthPercentage; // Szerokoœæ paska na podstawie zdrowia
+
+    float x = (WINDOW_WIDTH - barWidth) / 2.0f; // Centrowanie w poziomie
+    float y = (WINDOW_HEIGHT * 0.95f);
+
+    SDL_FRect backgroundBar = { x, y, barWidth, barHeight };
+    SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255); // Szary kolor
+    SDL_RenderFillRect(renderer, &backgroundBar);
+
+    SDL_FRect foregroundBar = { x, y, currentBarWidth, barHeight };
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Czerwony kolor
+    SDL_RenderFillRect(renderer, &foregroundBar);
+
+}
+
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 {
@@ -453,6 +474,12 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     SDL_RenderClear(renderer);
 
     renderDragons(renderer);
+
+    for (auto& dragon : dragons)
+    {
+        renderHealthBar(dragon, renderer); // Renderuj pasek zdrowia
+    }
+
     renderHealthValueText();
     updateHealthValueText();
     renderScoreText();
