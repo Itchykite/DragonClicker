@@ -82,6 +82,64 @@ void renderDragons(SDL_Renderer* renderer)
     }
 }
 
+class DragonUpgrades
+{
+public:
+    int multiplier{};
+    long int dragonUpgradeCost{};
+
+    DragonUpgrades(long int dragonUpgradeCost, int multiplier) : dragonUpgradeCost(dragonUpgradeCost), multiplier(multiplier)
+    {
+        float clickFieldSizePercentage = 0.25f;
+        float squareSize = static_cast<float>(std::min(WINDOW_WIDTH, WINDOW_HEIGHT) * clickFieldSizePercentage);
+        int margin = 20;
+        float rectangleHeight = squareSize / 4;
+
+        // Automatyczne pozycjonowanie przycisków jeden pod drugim
+        upgradeButtonField =
+        {
+            static_cast<float>(margin), // Lewa krawêdŸ z marginesem
+            static_cast<float>(yOffset),
+            squareSize,
+            rectangleHeight
+        };
+
+        // Zwiêkszenie pozycji dla kolejnego przycisku
+        yOffset += rectangleHeight + 10;
+    }
+
+    void render(SDL_Renderer* renderer)
+    {
+        SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+        SDL_RenderFillRect(renderer, &upgradeButtonField);
+    }
+
+    float getX() const { return upgradeButtonField.x; }
+    float getY() const { return upgradeButtonField.y; }
+    float getW() const { return upgradeButtonField.w; }
+    float getH() const { return upgradeButtonField.h; }
+
+private:
+    static float yOffset; // Przechowuje przesuniêcie w osi Y dla kolejnych przycisków
+    SDL_FRect upgradeButtonField{};
+};
+
+std::vector<DragonUpgrades> dragonButtons;
+float DragonUpgrades::yOffset = 100.0f;
+
+void createDragonButtons()
+{
+    dragonButtons.emplace_back(1000, 2);
+}
+
+void renderDragonButtons(SDL_Renderer* renderer)
+{
+    for (auto& dragonButton : dragonButtons)
+    {
+        dragonButton.render(renderer);
+    }
+}
+
 class UpgradeButton
 {
 public:
@@ -389,6 +447,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
     updateScoreText();
     createButtons();
     createDragons();
+    createDragonButtons();
 
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
@@ -411,11 +470,11 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
             if (mouseX >= dragon.getX() && mouseX <= dragon.getX() + dragon.getW() &&
                 mouseY >= dragon.getY() && mouseY <= dragon.getY() + dragon.getH())
             {
-                std::cout << "Dragon health: " << dragon.health << std::endl;
+                //std::cout << "Dragon health: " << dragon.health << std::endl;
 
                 if (dragon.health <= 0)
                 {
-                    std::cout << "You slayed a dragon!" << std::endl;
+                    //std::cout << "You slayed a dragon!" << std::endl;
                     dragon.health = dragon.baseHealth * 1.5f;
                     dragon.baseHealth = dragon.health;
                     score += dragon.dragonSlayedPrice;
@@ -457,6 +516,20 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
             }
         }
 
+        for (auto& dragonButton : dragonButtons)
+        {
+            if (mouseX >= dragonButton.getX() && mouseX <= dragonButton.getX() + dragonButton.getW() &&
+                mouseY >= dragonButton.getY() && mouseY <= dragonButton.getY() + dragonButton.getH())
+            {
+                if (score >= dragonButton.dragonUpgradeCost)
+                {
+                    incrementScore *= dragonButton.multiplier;
+                    score -= dragonButton.dragonUpgradeCost;
+                    dragonButton.dragonUpgradeCost *= 2.5f;
+                }
+            }
+        }
+
         updateScoreText();
         updateIncrementValueText();
     }
@@ -485,6 +558,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     renderScoreText();
     renderIncrementValueText();
     renderButtons(renderer);
+    renderDragonButtons(renderer);
 
     Uint32 currentTime = SDL_GetTicks();
     if (currentTime - lastUpdateTime >= 1000)
