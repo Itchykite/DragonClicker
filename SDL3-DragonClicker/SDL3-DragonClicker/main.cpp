@@ -35,11 +35,12 @@ static SDL_Texture* dragonCoinTexture = NULL;
 static TTF_Font* font = NULL;
 TTF_Font* incrementValueFont = NULL;
 
-static SDL_Texture* backgroundImage = NULL;
+static SDL_Texture* backgroundImage = nullptr;
+static SDL_Texture* dragon1 = nullptr;
 
-long int incrementScore = 1;
-long double score = { 0.00 };
-long double dragonCoins = { 0.00 };
+long double incrementScore = 1.0f;
+long double score = { 0.0f };
+long double dragonCoins = { 1000.0f };
 std::string s_score = std::to_string(score);
 Uint32 lastIncrementTime = 0; // Czas ostatniej aktualizacji
 
@@ -52,15 +53,25 @@ public:
 
     Dragon(double dragonSlayedPrice) : dragonSlayedPrice(dragonSlayedPrice)
     {
-        float clickFieldSizePercentage = 0.75f; // wielkoœæ pola
-        float squareSize = std::min(WINDOW_WIDTH, WINDOW_HEIGHT) * clickFieldSizePercentage; // obliczanie wielkoœci wzglêdem ekranu (float)
-        clickField = { (WINDOW_WIDTH - squareSize) / 2.0f, (WINDOW_HEIGHT - squareSize) / 2.0f, squareSize, squareSize }; // pozycja jako float
+        float clickFieldSizePercentage = 0.75f; 
+        float squareSize = std::min(WINDOW_WIDTH, WINDOW_HEIGHT) * clickFieldSizePercentage;
+        clickField = { (WINDOW_WIDTH - squareSize) / 2.0f, (WINDOW_HEIGHT - squareSize) / 2.0f, squareSize, squareSize };
     }
 
     void render(SDL_Renderer* renderer)
     {
-        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-        SDL_RenderFillRect(renderer, &clickField);
+        float dragonWidth, dragonHeight;
+        SDL_GetTextureSize(dragon1, &dragonWidth, &dragonHeight);
+
+        float scale = 1.2f;
+        float newDragonWidth = static_cast<float>(dragonWidth * scale);
+        float newDragonHeight = static_cast<float>(dragonHeight * scale);
+
+        float posX = (WINDOW_WIDTH - newDragonWidth) / 2.0f;
+        float posY = (WINDOW_HEIGHT - newDragonHeight) / 2.0f;
+
+        SDL_FRect dragonField = { posX, posY, static_cast<float>(newDragonWidth), static_cast<float>(newDragonHeight) };
+        SDL_RenderTexture(renderer, dragon1, NULL, &dragonField);
     }
 
     float getX() const { return clickField.x; }
@@ -93,10 +104,10 @@ public:
     SDL_Texture* texture = nullptr;
     SDL_FRect textRect{};
 
-    int multiplier{};
+    long double multiplier{};
     long int dragonUpgradeCost{};
 
-    DragonUpgrades(long int dragonUpgradeCost, int multiplier) : dragonUpgradeCost(dragonUpgradeCost), multiplier(multiplier)
+    DragonUpgrades(long int dragonUpgradeCost, long double multiplier) : dragonUpgradeCost(dragonUpgradeCost), multiplier(multiplier)
     {
         float clickFieldSizePercentage = 0.25f;
         float squareSize = static_cast<float>(std::min(WINDOW_WIDTH, WINDOW_HEIGHT) * clickFieldSizePercentage);
@@ -153,7 +164,8 @@ float DragonUpgrades::yOffset = 100.0f;
 
 void createDragonButtons()
 {
-    dragonButtons.emplace_back(10, 2);
+    dragonButtons.emplace_back(10, 1.5f);
+    dragonButtons.emplace_back(25, 2.5f);
 }
 
 void renderDragonButtons(SDL_Renderer* renderer)
@@ -543,11 +555,8 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 {
     //SDL_SetAppMetadata("Example Renderer Clear", "1.0", "com.example.renderer-clear");
 
-    backgroundImage = IMG_LoadTexture(renderer, "background.png");
-
     SDL_Color color = { 255, 255, 255, SDL_ALPHA_OPAQUE };
     SDL_Surface* text;
-
 
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
@@ -591,6 +600,15 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
     if (!texture)
     {
         SDL_Log("Couldn't create text: %s\n", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    backgroundImage = IMG_LoadTexture(renderer, "background.jpeg");
+    dragon1 = IMG_LoadTexture(renderer, "dragon1.png");
+
+    if (!backgroundImage || !dragon1)
+    {
+        std::cerr << "B³¹d wczytywania obrazu: " << SDL_GetError() << std::endl;
         return SDL_APP_FAILURE;
     }
 
@@ -654,6 +672,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
                     {
                         return SDL_APP_CONTINUE;  /* carry on with the program! */
                     }
+
                     else if (score >= button.upgradeCost)
                     {
                         // Jeœli mamy wystarczaj¹co punktów na upgrade
@@ -692,8 +711,8 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 {
     static Uint32 lastUpdateTime = SDL_GetTicks();
     
-    SDL_RenderTexture(renderer, backgroundImage, NULL, NULL);
     SDL_RenderClear(renderer);
+    SDL_RenderTexture(renderer, backgroundImage, NULL, NULL);
 
     renderDragons(renderer);
 
@@ -750,6 +769,11 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result)
     if (backgroundImage)
     {
         SDL_DestroyTexture(backgroundImage);
+    }
+
+    if (dragon1)
+    {
+        SDL_DestroyTexture(dragon1);
     }
 
     TTF_Quit();
