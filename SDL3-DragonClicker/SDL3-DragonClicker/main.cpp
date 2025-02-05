@@ -12,6 +12,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
 #include <SDL3/SDL_main.h>
+#include <SDL3_image/SDL_image.h>
 
 #include <iostream>
 #include <string>
@@ -33,6 +34,8 @@ static SDL_Texture* healthValueTexture = NULL;
 static SDL_Texture* dragonCoinTexture = NULL;
 static TTF_Font* font = NULL;
 TTF_Font* incrementValueFont = NULL;
+
+static SDL_Texture* backgroundImage = NULL;
 
 long int incrementScore = 1;
 long double score = { 0.00 };

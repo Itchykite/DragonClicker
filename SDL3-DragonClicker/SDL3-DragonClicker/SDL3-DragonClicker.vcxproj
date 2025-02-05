@@ -114,15 +114,15 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;C:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\lib\SDL3_image-3.2.0\include;C:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;C:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\lib\x64;C:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\lib\SDL3_image-3.2.0\lib\x64;C:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\lib\x64;C:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
-      <AdditionalDependencies>SDL3_ttf.lib;SDL3.lib;SDL3_test.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL3_image.lib;SDL3_ttf.lib;SDL3.lib;SDL3_test.lib;$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
