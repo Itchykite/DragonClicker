@@ -22,8 +22,8 @@
 #include <algorithm>
 
 // Rozmiar okna
-static int WINDOW_WIDTH = 1280;
-static int WINDOW_HEIGHT = 720;
+static int WINDOW_WIDTH = 1920;
+static int WINDOW_HEIGHT = 1080;
 
  /* We will use this renderer to draw into this window every frame. */
 static SDL_Window* window = NULL;
@@ -33,7 +33,9 @@ static SDL_Texture* incrementValueTexture = NULL;
 static SDL_Texture* healthValueTexture = NULL;
 static SDL_Texture* dragonCoinTexture = NULL;
 static TTF_Font* font = NULL;
-TTF_Font* incrementValueFont = NULL;
+static TTF_Font* incrementValueFont = NULL;
+static TTF_Font* HPValueFont = NULL;
+static TTF_Font* upgradeValueFont = NULL;
 
 static SDL_Texture* backgroundImage = nullptr;
 static SDL_Texture* dragon1 = nullptr;
@@ -401,7 +403,7 @@ void updateHealthValueText()
     std::string incrementValueS = stream.str();
 
     SDL_Color color = { 0, 0, 0, 255 };
-    SDL_Surface* text = TTF_RenderText_Blended(incrementValueFont, incrementValueS.c_str(), 0, color);
+    SDL_Surface* text = TTF_RenderText_Blended(HPValueFont, incrementValueS.c_str(), 0, color);
 
     if (text)
     {
@@ -519,7 +521,7 @@ void updateButtonText(SDL_Renderer* renderer)
         stream << "Cost: " << std::fixed << std::setprecision(2) << button.upgradeCost;
         std::string textString = stream.str();
 
-        SDL_Surface* textSurface = TTF_RenderText_Blended(font, textString.c_str(), 0, color);
+        SDL_Surface* textSurface = TTF_RenderText_Blended(upgradeValueFont, textString.c_str(), 0, color);
         if (textSurface)
         {
             button.texture = SDL_CreateTextureFromSurface(renderer, textSurface);
@@ -551,7 +553,7 @@ void updateDragonButtonText(SDL_Renderer* renderer)
         stream << "Cost: " << std::fixed << std::setprecision(2) << dragonButton.dragonUpgradeCost;
         std::string textString = stream.str();
 
-        SDL_Surface* textSurface = TTF_RenderText_Blended(font, textString.c_str(), 0, color);
+        SDL_Surface* textSurface = TTF_RenderText_Blended(upgradeValueFont, textString.c_str(), 0, color);
         if (textSurface)
         {
             dragonButton.texture = SDL_CreateTextureFromSurface(renderer, textSurface);
@@ -563,6 +565,8 @@ void updateDragonButtonText(SDL_Renderer* renderer)
         }
     }
 }
+
+
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
@@ -590,15 +594,29 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
         return SDL_APP_FAILURE;
     }
 
-    font = TTF_OpenFont("Poppins-Bold.ttf", 24.0f);
+    font = TTF_OpenFont("EagleLake-Regular.ttf", 32.0f);
     if (!font)
     {
         SDL_Log("Couldn't open font: %s\n", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    incrementValueFont = TTF_OpenFont("Poppins-Bold.ttf", 16.0f);
+    incrementValueFont = TTF_OpenFont("EagleLake-Regular.ttf", 16.0f);
     if (!incrementValueFont)
+    {
+        SDL_Log("Couldn't open incrementValue font: %s\n", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    HPValueFont = TTF_OpenFont("EagleLake-Regular.ttf", 24.0f);
+    if (!HPValueFont)
+    {
+        SDL_Log("Couldn't open incrementValue font: %s\n", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    upgradeValueFont = TTF_OpenFont("EagleLake-Regular.ttf", 20.0f);
+    if (!upgradeValueFont)
     {
         SDL_Log("Couldn't open incrementValue font: %s\n", SDL_GetError());
         return SDL_APP_FAILURE;
