@@ -22,8 +22,8 @@
 #include <algorithm>
 
 // Rozmiar okna
-static int WINDOW_WIDTH = 1920;
-static int WINDOW_HEIGHT = 1080;
+static int WINDOW_WIDTH = 1280;
+static int WINDOW_HEIGHT = 720;
 
  /* We will use this renderer to draw into this window every frame. */
 static SDL_Window* window = NULL;
@@ -37,12 +37,13 @@ TTF_Font* incrementValueFont = NULL;
 
 static SDL_Texture* backgroundImage = nullptr;
 static SDL_Texture* dragon1 = nullptr;
+static SDL_Texture* dragonCoin = nullptr;
 
-long double incrementScore = 1.0f;
+long double incrementScore = { 1.0f };
 long double score = { 0.0f };
-long double dragonCoins = { 1000.0f };
+long double dragonCoins = { 0.0f };
 std::string s_score = std::to_string(score);
-Uint32 lastIncrementTime = 0; // Czas ostatniej aktualizacji
+Uint32 lastIncrementTime = 0;
 
 class Dragon
 {
@@ -456,8 +457,21 @@ void renderDragonCoinText()
     SDL_FRect dst;
     dst.w = w;
     dst.h = h;
-    dst.x = (WINDOW_WIDTH * 0.9); // Centrowanie
+    dst.x = (WINDOW_WIDTH * 0.87f); // Centrowanie
     dst.y = (WINDOW_HEIGHT * 0.02f);  // Poni¿ej g³ównego tekstu, zmniejszaj¹c y
+
+    float coinWidth, coinHeight;
+    SDL_GetTextureSize(dragonCoin, &coinWidth, &coinHeight);
+
+    float scale = .07f;
+    float newCoinWidth = static_cast<float>(coinWidth * scale);
+    float newCoinHeight = static_cast<float>(coinHeight * scale);
+
+    float posX = (WINDOW_WIDTH * 0.83f);
+    float posY = (WINDOW_HEIGHT * 0.005f);
+
+    SDL_FRect dragonField = { posX, posY, static_cast<float>(newCoinWidth), static_cast<float>(newCoinHeight) };
+    SDL_RenderTexture(renderer, dragonCoin, NULL, &dragonField);
 
     SDL_RenderTexture(renderer, dragonCoinTexture, NULL, &dst);
 }
@@ -605,8 +619,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 
     backgroundImage = IMG_LoadTexture(renderer, "background.jpeg");
     dragon1 = IMG_LoadTexture(renderer, "dragon1.png");
+    dragonCoin = IMG_LoadTexture(renderer, "coin.png");
 
-    if (!backgroundImage || !dragon1)
+    if (!backgroundImage || !dragon1 || !dragonCoin)
     {
         std::cerr << "B³¹d wczytywania obrazu: " << SDL_GetError() << std::endl;
         return SDL_APP_FAILURE;
