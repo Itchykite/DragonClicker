@@ -543,8 +543,11 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 {
     //SDL_SetAppMetadata("Example Renderer Clear", "1.0", "com.example.renderer-clear");
 
+    backgroundImage = IMG_LoadTexture(renderer, "background.png");
+
     SDL_Color color = { 255, 255, 255, SDL_ALPHA_OPAQUE };
     SDL_Surface* text;
+
 
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
@@ -688,8 +691,8 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 SDL_AppResult SDL_AppIterate(void* appstate)
 {
     static Uint32 lastUpdateTime = SDL_GetTicks();
-
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
+    
+    SDL_RenderTexture(renderer, backgroundImage, NULL, NULL);
     SDL_RenderClear(renderer);
 
     renderDragons(renderer);
@@ -742,6 +745,11 @@ void SDL_AppQuit(void* appstate, SDL_AppResult result)
     if (texture)
     {
         SDL_DestroyTexture(texture);
+    }
+
+    if (backgroundImage)
+    {
+        SDL_DestroyTexture(backgroundImage);
     }
 
     TTF_Quit();
