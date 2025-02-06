@@ -945,15 +945,44 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 SDL_AppResult SDL_AppIterate(void* appstate)
 {
     static Uint32 lastUpdateTime = SDL_GetTicks();
+    Uint32 currentTime = SDL_GetTicks();
+
+    float incrementValue = incrementValueCheck();
 
     SDL_RenderClear(renderer);
     SDL_RenderTexture(renderer, backgroundImage, NULL, NULL);
 
     renderDragons(renderer);
 
-    for (auto& dragon : gameState.dragons)
+    if (currentTime - lastUpdateTime >= 1000)
     {
-        renderHealthBar(dragon, renderer); // Renderuj pasek zdrowia
+        for (auto& button : gameState.buttons)
+        {
+            if (button.isActive())
+            {
+                button.incrementScore(); // Zwiêkszamy wynik
+                lastUpdateTime = currentTime;
+            }
+        }
+
+        for (auto& dragon : gameState.dragons)
+        {
+            std::cout << "Dragon's health: " << dragon.health << "\n";
+            dragon.health -= static_cast<long double>(incrementValue);
+            renderHealthBar(dragon, renderer); // Renderuj pasek 
+        }
+
+        lastUpdateTime = currentTime;
+
+        updateScoreText();
+    }
+
+    else
+    {
+        for (auto& dragon : gameState.dragons)
+        {
+            renderHealthBar(dragon, renderer); // Renderuj pasek 
+        }
     }
 
     renderHealthValueText();
@@ -966,23 +995,6 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     renderDragonCoinText();
     updateDragonCoinText(renderer);
     updateDragonButtonText(renderer);
-
-    Uint32 currentTime = SDL_GetTicks();
-    if (currentTime - lastUpdateTime >= 1000)
-    {
-        for (auto& button : gameState.buttons)
-        {
-            if (button.isActive())
-            {
-                // std::cout << "Before increment: score = " << score << ", incrementValue = " << button.getIncrementValue() << std::endl;
-                button.incrementScore(); // Zwiêkszamy wynik
-                //std::cout << "After increment: score = " << score << std::endl;
-                lastUpdateTime = currentTime;
-            }
-        }
-
-        updateScoreText();
-    }
 
     if (!gameState.lastSaveTime.empty() && currentTime - lastSaveTime >= autoSaveInterval)
     {
