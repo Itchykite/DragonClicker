@@ -8,6 +8,7 @@
  * This code is public domain. Feel free to use it for any purpose!
  */
 
+#define _CRT_SECURE_NO_WARNINGS
 #define SDL_MAIN_USE_CALLBACKS 1  /* use the callbacks instead of main() */
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
@@ -22,6 +23,8 @@
 #include <vector>
 #include <algorithm>
 #include <fstream>
+#include <ctime>
+#include <chrono>
 
  // Rozmiar okna
 static int WINDOW_WIDTH = 1920;
@@ -239,6 +242,31 @@ private:
 float UpgradeButton::yOffset = 100.0f;
 Uint32 UpgradeButton::lastUpdateTime = 0;
 
+std::string getCurrentDateTime()
+{
+    auto now = std::chrono::system_clock::now();
+    std::time_t in_time_t = std::chrono::system_clock::to_time_t(now);
+
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%FT%T%z");
+
+    return ss.str();
+}
+
+std::time_t parseDateTime(const std::string& dateTimeStr)
+{
+    std::tm t{};
+    std::istringstream ss(dateTimeStr);
+
+    ss >> std::get_time(&t, "%FT%T%z");
+    if (ss.fail())
+    {
+        throw std::runtime_error("Err");
+    }
+
+    return mktime(&t);
+}
+
 // zapis -------------------------------
 struct GameState
 {
@@ -246,6 +274,7 @@ struct GameState
     long double score = { 0.0f };
     long double dragonCoins = { 0.0f };
     std::string s_score = std::to_string(score);
+    std::string lastSaveTime;
 
     std::vector<Dragon> dragons{};
     std::vector<DragonUpgrades> dragonButtons{};
@@ -259,6 +288,8 @@ void saveGameState(const GameState& gameState)
     jsonData["score"] = gameState.score;
     jsonData["incrementScore"] = gameState.incrementScore;
     jsonData["dragonCoins"] = gameState.dragonCoins;
+
+    jsonData["lastSaveTime"] = getCurrentDateTime();
 
     jsonData["dragons"] = nlohmann::json::array();
     for (const auto& dragon : gameState.dragons)
@@ -313,6 +344,7 @@ void loadGameState(GameState& gameState)
     gameState.score = jsonData.value("score", 0.0);
     gameState.incrementScore = jsonData.value("incrementScore", 1.0);
     gameState.dragonCoins = jsonData.value("dragonCoins", 0.0);
+    gameState.lastSaveTime = jsonData.value("lastSaveTime", "");
 
     gameState.dragons.clear();
     for (const auto& dragonData : jsonData["dragons"])
@@ -423,7 +455,7 @@ void createDragonButtons()
     if (gameState.dragonButtons.empty())
     {
         gameState.dragonButtons.emplace_back(10, 1.5f);
-        gameState.dragonButtons.emplace_back(25, 2.5f);
+        gameState.dragonButtons.emplace_back(30, 2.5f);
     }
 }
 
@@ -594,14 +626,14 @@ void renderHealthValueText()
 
 void renderHealthBar(Dragon& dragon, SDL_Renderer* renderer)
 {
-    float barHeight = 20.0f; // Wysokoœæ paska zdrowia
+    float barHeight = 40.0f; // Wysokoœæ paska zdrowia
     float barWidth = WINDOW_WIDTH * 0.5f; // Szerokoœæ paska zdrowia bêdzie 50% szerokoœci okna
 
     float healthPercentage = dragon.health / dragon.baseHealth;
     float currentBarWidth = barWidth * healthPercentage; // Szerokoœæ paska na podstawie zdrowia
 
     float x = (WINDOW_WIDTH - barWidth) / 2.0f; // Centrowanie w poziomie
-    float y = (WINDOW_HEIGHT * 0.95f);
+    float y = (WINDOW_HEIGHT * 0.90f);
 
     SDL_FRect backgroundBar = { x, y, barWidth, barHeight };
     SDL_SetRenderDrawColor(renderer, 100, 100, 100, 255); // Szary kolor
@@ -950,6 +982,35 @@ SDL_AppResult SDL_AppIterate(void* appstate)
         }
 
         updateScoreText();
+    }
+
+    if (!gameState.lastSaveTime.empty() && currentTime - lastSaveTime >= autoSaveInterval)
+    {
+        try
+        {
+            std::time_t lastSave = parseDateTime(gameState.lastSaveTime);
+            std::time_t now = std::time(0);
+            double timeDiffSeconds = difftime(now, lastSave);
+            long double timeAFKHours = timeDiffSeconds / 3600.0f;
+
+            long double afkBonus = std::min(1000.0L, static_cast<long double>(gameState.incrementScore * timeAFKHours * 0.25f));
+            gameState.score += afkBonus;
+            updateScoreText();
+        }
+
+        catch (const std::runtime_error& e)
+        {
+            std::cerr << "Error calulating AFK: " << e.what() << "\n";
+        }
+
+        saveGameState(gameState);
+        lastSaveTime = currentTime;
+        gameState.lastSaveTime = getCurrentDateTime();
+    }
+
+    else if (gameState.lastSaveTime.empty())
+    {
+        gameState.lastSaveTime = getCurrentDateTime();
     }
 
     SDL_RenderPresent(renderer);
