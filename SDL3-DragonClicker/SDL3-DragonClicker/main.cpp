@@ -13,6 +13,7 @@
 #include <SDL3_ttf/SDL_ttf.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3_image/SDL_image.h>
+#include <nlohmann/json.hpp>
 
 #include <iostream>
 #include <string>
@@ -20,12 +21,13 @@
 #include <sstream>
 #include <vector>
 #include <algorithm>
+#include <fstream>
 
-// Rozmiar okna
+ // Rozmiar okna
 static int WINDOW_WIDTH = 1920;
 static int WINDOW_HEIGHT = 1080;
 
- /* We will use this renderer to draw into this window every frame. */
+/* We will use this renderer to draw into this window every frame. */
 static SDL_Window* window = NULL;
 static SDL_Renderer* renderer = NULL;
 static SDL_Texture* texture = NULL;
@@ -41,26 +43,30 @@ static SDL_Texture* backgroundImage = nullptr;
 static SDL_Texture* dragon1 = nullptr;
 static SDL_Texture* dragonCoin = nullptr;
 
-long double incrementScore = { 1.0f };
-long double score = { 0.0f };
-long double dragonCoins = { 0.0f };
-std::string s_score = std::to_string(score);
 Uint32 lastIncrementTime = 0;
+Uint32 lastSaveTime = SDL_GetTicks();
+const Uint32 autoSaveInterval = 60000;
 
 class Dragon
 {
 public:
-    long double health = 100;
+    long double health;
     long double baseHealth = 100;
     double dragonSlayedPrice = 0;
 
     Dragon(double dragonSlayedPrice) : dragonSlayedPrice(dragonSlayedPrice)
     {
-        float clickFieldSizePercentage = 0.75f; 
+        health = baseHealth;
+        float clickFieldSizePercentage = 0.75f;
         float squareSize = std::min(WINDOW_WIDTH, WINDOW_HEIGHT) * clickFieldSizePercentage;
         clickField = { (WINDOW_WIDTH - squareSize) / 2.0f, (WINDOW_HEIGHT - squareSize) / 2.0f, squareSize, squareSize };
     }
 
+    Dragon(double dragonSlayedPrice, long double health, long double baseHealth)
+        : dragonSlayedPrice(dragonSlayedPrice), health(health), baseHealth(baseHealth)
+    {
+        if (health == 0.0) health = baseHealth;
+    }
     void render(SDL_Renderer* renderer)
     {
         float dragonWidth, dragonHeight;
@@ -85,21 +91,6 @@ public:
 private:
     SDL_FRect clickField;
 };
-
-std::vector<Dragon> dragons;
-
-void createDragons()
-{
-    dragons.emplace_back(10);
-}
-
-void renderDragons(SDL_Renderer* renderer)
-{
-    for (auto& dragon : dragons)
-    {
-        dragon.render(renderer);
-    }
-}
 
 class DragonUpgrades
 {
@@ -156,28 +147,15 @@ public:
     float getY() const { return upgradeButtonField.y; }
     float getW() const { return upgradeButtonField.w; }
     float getH() const { return upgradeButtonField.h; }
+    long double getMultiplier() const { return multiplier; }
+    long int getDragonUpgradeCost() const { return dragonUpgradeCost; }
 
 private:
     static float yOffset; // Przechowuje przesuniêcie w osi Y dla kolejnych przycisków
     SDL_FRect upgradeButtonField{};
 };
 
-std::vector<DragonUpgrades> dragonButtons;
 float DragonUpgrades::yOffset = 100.0f;
-
-void createDragonButtons()
-{
-    dragonButtons.emplace_back(10, 1.5f);
-    dragonButtons.emplace_back(25, 2.5f);
-}
-
-void renderDragonButtons(SDL_Renderer* renderer)
-{
-    for (auto& dragonButton : dragonButtons)
-    {
-        dragonButton.render(renderer);
-    }
-}
 
 class UpgradeButton
 {
@@ -199,7 +177,7 @@ public:
         float rectangleHeight = squareSize / 4;
 
         // Automatyczne pozycjonowanie przycisków jeden pod drugim
-        upgradeButtonField = 
+        upgradeButtonField =
         {
             WINDOW_WIDTH - squareSize - margin,
             static_cast<float>(yOffset),
@@ -219,13 +197,7 @@ public:
         }
     }
 
-    void incrementScore()
-    {
-        if (isObjectUpgrading)
-        {
-            score += incrementValue;
-        }
-    }
+    void incrementScore();
 
     void upgradeScoreValue()
     {
@@ -255,6 +227,8 @@ public:
     void deactivate() { isObjectUpgrading = false; }
     bool isActive() const { return isObjectUpgrading; }
     float getIncrementValue() const { return incrementValue; }
+    float getUpgradeCost() const { return upgradeCost; }
+    float getIncrementValueChange() const { return incrementValueChange; }
 
 private:
     static float yOffset; // Przechowuje przesuniêcie w osi Y dla kolejnych przycisków
@@ -262,22 +236,170 @@ private:
     float incrementValueChange;
 };
 
-std::vector<UpgradeButton> buttons;
 float UpgradeButton::yOffset = 100.0f;
 Uint32 UpgradeButton::lastUpdateTime = 0;
 
-void createButtons()
+// zapis -------------------------------
+struct GameState
 {
-    buttons.emplace_back(50, 0.0f, 0.1f);
-    buttons.emplace_back(100, 0.0f, 0.5f);
-    buttons.emplace_back(200, 0.0f, 1.0f);
+    long double incrementScore = { 1.0f };
+    long double score = { 0.0f };
+    long double dragonCoins = { 0.0f };
+    std::string s_score = std::to_string(score);
+
+    std::vector<Dragon> dragons{};
+    std::vector<DragonUpgrades> dragonButtons{};
+    std::vector<UpgradeButton> buttons{};
+};
+
+void saveGameState(const GameState& gameState)
+{
+    nlohmann::json jsonData;
+
+    jsonData["score"] = gameState.score;
+    jsonData["incrementScore"] = gameState.incrementScore;
+    jsonData["dragonCoins"] = gameState.dragonCoins;
+
+    jsonData["dragons"] = nlohmann::json::array();
+    for (const auto& dragon : gameState.dragons)
+    {
+        jsonData["dragons"].push_back({
+            {"health", dragon.health},
+            {"baseHealth", dragon.baseHealth},
+            {"dragonSlayedPrice", dragon.dragonSlayedPrice}
+            });
+    }
+
+    jsonData["dragonButtons"] = nlohmann::json::array();
+    for (const auto& upgrade : gameState.dragonButtons)
+    {
+        std::cout << "Zapisywanie DragonUpgradeButton - Koszt: " << upgrade.getDragonUpgradeCost() << ", Mno¿nik: " << upgrade.getMultiplier() << std::endl; // Log zapisywania DragonUpgradeButton
+        jsonData["dragonUpgrades"].push_back({
+            {"multiplier", upgrade.getMultiplier()},
+            {"cost", upgrade.getDragonUpgradeCost()}
+            });
+    }
+
+    jsonData["buttons"] = nlohmann::json::array();
+    for (const auto& button : gameState.buttons)
+    {
+        std::cout << "Zapisywanie UpgradeButton - Koszt ulepszenia (przed zapisem JSON): " << button.getUpgradeCost() << ", Increment value: " << button.getIncrementValue() << ", Aktywny: " << button.isActive() << std::endl; // LOG 3: Wypisujemy cenê przed zapisem do JSON
+        jsonData["buttons"].push_back({
+            {"incrementValue", button.getIncrementValue()},
+            {"upgradeCost", button.getUpgradeCost()},
+            {"isActive", button.isActive()}
+            });
+    }
+
+    std::ofstream file("savegame.json");
+    if (file)
+    {
+        file << std::setw(4) << jsonData << std::endl;
+    }
+}
+
+void loadGameState(GameState& gameState)
+{
+    std::ifstream file("savegame.json");
+    if (!file)
+    {
+        std::cout << "Brak pliku zapisu! Tworzenie nowej gry." << std::endl;
+        return;
+    }
+
+    nlohmann::json jsonData;
+    file >> jsonData;
+
+    gameState.score = jsonData.value("score", 0.0);
+    gameState.incrementScore = jsonData.value("incrementScore", 1.0);
+    gameState.dragonCoins = jsonData.value("dragonCoins", 0.0);
+
+    gameState.dragons.clear();
+    for (const auto& dragonData : jsonData["dragons"])
+    {
+        Dragon dragon(dragonData["dragonSlayedPrice"].get<double>());
+        dragon.health = dragonData["health"].get<long double>();
+        dragon.baseHealth = dragonData["baseHealth"].get<long double>();
+        gameState.dragons.push_back(dragon);
+    }
+
+    gameState.dragonButtons.clear();
+    int dragonButtonIndex = 0;
+    for (const auto& upgradeData : jsonData["dragonUpgrades"])
+    {
+        float loadedDragonUpgradeCost = upgradeData.value("cost", 10.0f);
+        long double loadedMultiplier = upgradeData.value("multiplier", 1.5);
+
+        std::cout << "£adowanie DragonUpgradeButton [" << dragonButtonIndex << "] - Koszt: " << loadedDragonUpgradeCost << ", Mno¿nik: " << loadedMultiplier << std::endl; // Log ³adowania DragonUpgradeButton
+        gameState.dragonButtons.emplace_back(
+            static_cast<long int>(loadedDragonUpgradeCost),
+            loadedMultiplier
+        );
+        dragonButtonIndex++;
+    }
+    std::cout << "Za³adowano " << gameState.dragonButtons.size() << " DragonUpgradeButtons." << std::endl;
+
+    gameState.buttons.clear();
+    int buttonIndex = 0;
+    for (const auto& buttonData : jsonData["buttons"])
+    {
+        float loadedUpgradeCost = buttonData.value("upgradeCost", 50.0f);
+        float loadedIncrementValue = buttonData.value("incrementValue", 0.0f);
+        bool loadedIsActive = buttonData.value("isActive", false);
+
+        std::cout << "£adowanie UpgradeButton [" << buttonIndex << "] - Koszt ulepszenia (z JSON): " << loadedUpgradeCost << ", Increment value: " << loadedIncrementValue << ", Aktywny: " << loadedIsActive << std::endl; // LOG 1: Wypisujemy wartoœæ za³adowan¹ z JSON
+
+        float incrementValueChangeValues[] = { 0.1f, 0.5f, 1.0f };
+        float incrementValueChangeToUse = 0.1f;
+        if (buttonIndex < sizeof(incrementValueChangeValues) / sizeof(incrementValueChangeValues[0]))
+        {
+            incrementValueChangeToUse = incrementValueChangeValues[buttonIndex];
+        }
+
+
+        gameState.buttons.emplace_back(
+            loadedUpgradeCost,
+            loadedIncrementValue,
+            incrementValueChangeToUse
+        );
+
+        std::cout << "£adowanie UpgradeButton [" << buttonIndex << "] - Koszt ulepszenia (po utworzeniu obiektu): " << gameState.buttons.back().upgradeCost << std::endl; // LOG 2: Wypisujemy cenê obiektu button po utworzeniu
+
+        if (loadedIsActive)
+        {
+            gameState.buttons.back().activate();
+        }
+        buttonIndex++;
+    }
+
+    std::cout << "Za³adowano " << gameState.buttons.size() << " UpgradeButtons." << std::endl;
+}
+
+static GameState gameState;
+
+void UpgradeButton::incrementScore()
+{
+    if (isObjectUpgrading)
+    {
+        gameState.score += incrementValue;
+    }
 }
 
 void renderButtons(SDL_Renderer* renderer)
 {
-    for (auto& button : buttons)
+    for (auto& button : gameState.buttons)
     {
         button.render(renderer);
+    }
+}
+
+void createButtons()
+{
+    if (gameState.buttons.empty())
+    {
+        gameState.buttons.emplace_back(50, 0.0f, 0.1f);
+        gameState.buttons.emplace_back(100, 0.0f, 0.5f);
+        gameState.buttons.emplace_back(200, 0.0f, 1.0f);
     }
 }
 
@@ -285,7 +407,7 @@ float incrementValueCheck()
 {
     float incrementValue = 0.0f;
 
-    for (const auto& button : buttons)
+    for (const auto& button : gameState.buttons)
     {
         if (button.isActive())
         {
@@ -294,6 +416,48 @@ float incrementValueCheck()
     }
 
     return incrementValue;
+}
+
+void createDragonButtons()
+{
+    if (gameState.dragonButtons.empty())
+    {
+        gameState.dragonButtons.emplace_back(10, 1.5f);
+        gameState.dragonButtons.emplace_back(25, 2.5f);
+    }
+}
+
+void renderDragonButtons(SDL_Renderer* renderer)
+{
+    for (auto& dragonButton : gameState.dragonButtons)
+    {
+        dragonButton.render(renderer);
+    }
+}
+
+void createDragons()
+{
+    if (gameState.dragons.empty())
+    {
+        gameState.dragons.emplace_back(10);
+    }
+}
+
+void renderDragons(SDL_Renderer* renderer)
+{
+    for (auto& dragon : gameState.dragons)
+    {
+        dragon.render(renderer);
+    }
+}
+
+void updateInterval()
+{
+    if (SDL_GetTicks() - lastSaveTime > autoSaveInterval)
+    {
+        saveGameState(gameState);
+        lastSaveTime = SDL_GetTicks();
+    }
 }
 
 void updateScoreText()
@@ -305,11 +469,11 @@ void updateScoreText()
     }
 
     std::ostringstream stream;
-    stream << std::fixed << std::setprecision(2) << score;
-    s_score = stream.str();
+    stream << std::fixed << std::setprecision(2) << gameState.score;
+    gameState.s_score = stream.str();
 
     SDL_Color color = { 0, 0, 0, 255 };
-    SDL_Surface* text = TTF_RenderText_Blended(font, s_score.c_str(), 0 ,color);
+    SDL_Surface* text = TTF_RenderText_Blended(font, gameState.s_score.c_str(), 0, color);
 
     if (text)
     {
@@ -333,7 +497,7 @@ void updateIncrementValueText()
     std::string incrementValueS = stream.str();
 
     SDL_Color color = { 0, 0, 0, 255 };
-    SDL_Surface* text = TTF_RenderText_Blended(incrementValueFont, incrementValueS.c_str(), 0 ,color);
+    SDL_Surface* text = TTF_RenderText_Blended(incrementValueFont, incrementValueS.c_str(), 0, color);
 
     if (text)
     {
@@ -378,7 +542,7 @@ void updateHealthValueText()
 {
     float healthValue{};
 
-    for (auto& dragon : dragons)
+    for (auto& dragon : gameState.dragons)
     {
         healthValue = dragon.health;
     }
@@ -480,7 +644,7 @@ void renderDragonCoinText()
 
 void updateDragonCoinText(SDL_Renderer* renderer)
 {
-    float dragonCoinsValue = dragonCoins;
+    float dragonCoinsValue = gameState.dragonCoins;
 
     if (dragonCoinTexture)
     {
@@ -504,7 +668,7 @@ void updateDragonCoinText(SDL_Renderer* renderer)
 
 void updateButtonText(SDL_Renderer* renderer)
 {
-    for (auto& button : buttons)
+    for (auto& button : gameState.buttons)
     {
         if (button.texture)
         {
@@ -515,7 +679,7 @@ void updateButtonText(SDL_Renderer* renderer)
 
     SDL_Color color = { 0, 0, 0, 255 };
 
-    for (auto& button : buttons)
+    for (auto& button : gameState.buttons)
     {
         std::ostringstream stream;
         stream << "Cost: " << std::fixed << std::setprecision(2) << button.upgradeCost;
@@ -536,7 +700,7 @@ void updateButtonText(SDL_Renderer* renderer)
 
 void updateDragonButtonText(SDL_Renderer* renderer)
 {
-    for (auto& dragonButton : dragonButtons)
+    for (auto& dragonButton : gameState.dragonButtons)
     {
         if (dragonButton.texture)
         {
@@ -547,7 +711,7 @@ void updateDragonButtonText(SDL_Renderer* renderer)
 
     SDL_Color color = { 0, 0, 0, 255 };
 
-    for (auto& dragonButton : dragonButtons)
+    for (auto& dragonButton : gameState.dragonButtons)
     {
         std::ostringstream stream;
         stream << "Cost: " << std::fixed << std::setprecision(2) << dragonButton.dragonUpgradeCost;
@@ -566,11 +730,11 @@ void updateDragonButtonText(SDL_Renderer* renderer)
     }
 }
 
-
-
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 {
+    loadGameState(gameState);
+
     //SDL_SetAppMetadata("Example Renderer Clear", "1.0", "com.example.renderer-clear");
 
     SDL_Color color = { 255, 255, 255, SDL_ALPHA_OPAQUE };
@@ -582,13 +746,13 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
         return SDL_APP_FAILURE;
     }
 
-    if (!SDL_CreateWindowAndRenderer("Dragon Clicker", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer)) 
+    if (!SDL_CreateWindowAndRenderer("Dragon Clicker", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer))
     {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    if (!TTF_Init()) 
+    if (!TTF_Init())
     {
         SDL_Log("Couldn't initialise SDL_ttf: %s\n", SDL_GetError());
         return SDL_APP_FAILURE;
@@ -622,7 +786,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
         return SDL_APP_FAILURE;
     }
 
-    text = TTF_RenderText_Blended(font, s_score.c_str(), 10, color);
+    text = TTF_RenderText_Blended(font, gameState.s_score.c_str(), 10, color);
     if (text)
     {
         texture = SDL_CreateTextureFromSurface(renderer, text);
@@ -658,6 +822,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 {
     if (event->type == SDL_EVENT_QUIT)
     {
+        saveGameState(gameState);
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
     }
 
@@ -666,7 +831,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
         float mouseX, mouseY;
         SDL_GetMouseState(&mouseX, &mouseY);
 
-        for (auto& dragon : dragons)
+        for (auto& dragon : gameState.dragons)
         {
             if (mouseX >= dragon.getX() && mouseX <= dragon.getX() + dragon.getW() &&
                 mouseY >= dragon.getY() && mouseY <= dragon.getY() + dragon.getH())
@@ -678,17 +843,17 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
                     //std::cout << "You slayed a dragon!" << std::endl;
                     dragon.health = dragon.baseHealth * 1.5f;
                     dragon.baseHealth = dragon.health;
-                    dragonCoins += dragon.dragonSlayedPrice;
+                    gameState.dragonCoins += dragon.dragonSlayedPrice;
                     dragon.dragonSlayedPrice *= 1.25f;
                 }
 
-                score += incrementScore;
-                dragon.health -= incrementScore;
+                gameState.score += gameState.incrementScore;
+                dragon.health -= gameState.incrementScore;
                 updateScoreText();
             }
         }
 
-        for (auto& button : buttons)
+        for (auto& button : gameState.buttons)
         {
             if (mouseX >= button.getX() && mouseX <= button.getX() + button.getW() &&
                 mouseY >= button.getY() && mouseY <= button.getY() + button.getH())
@@ -696,37 +861,42 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
                 if (!button.isObjectUpgrading)
                 {
                     button.isObjectUpgrading = true;
-                    UpgradeButton::lastUpdateTime = SDL_GetTicks(); // Resetujemy czas
+                    UpgradeButton::lastUpdateTime = SDL_GetTicks();
                     // std::cout << "Ulepszanie aktywowane!" << std::endl;
+
+                    if (gameState.score >= button.upgradeCost)
+                    {
+                        gameState.score -= button.upgradeCost;
+                        button.upgradeScoreValue(); // Zwiêkszamy incrementValue
+                        button.upgradeCost *= 1.2f;  // Zwiêkszamy koszt ulepszania
+                    }
                 }
                 else
                 {
-                    if (score < button.upgradeCost)
+                    if (gameState.score < button.upgradeCost)
                     {
                         return SDL_APP_CONTINUE;  /* carry on with the program! */
                     }
 
-                    else if (score >= button.upgradeCost)
+                    else if (gameState.score >= button.upgradeCost)
                     {
-                        // Jeœli mamy wystarczaj¹co punktów na upgrade
-                        score -= button.upgradeCost;
+                        gameState.score -= button.upgradeCost;
                         button.upgradeScoreValue(); // Zwiêkszamy incrementValue
                         button.upgradeCost *= 1.2f;  // Zwiêkszamy koszt ulepszania
-                        // std::cout << "1 - Cost: " << button.upgradeCost << " Increment value: " << button.getIncrementValue() << "\n";
                     }
                 }
             }
         }
 
-        for (auto& dragonButton : dragonButtons)
+        for (auto& dragonButton : gameState.dragonButtons)
         {
             if (mouseX >= dragonButton.getX() && mouseX <= dragonButton.getX() + dragonButton.getW() &&
                 mouseY >= dragonButton.getY() && mouseY <= dragonButton.getY() + dragonButton.getH())
             {
-                if (dragonCoins >= dragonButton.dragonUpgradeCost)
+                if (gameState.dragonCoins >= dragonButton.dragonUpgradeCost)
                 {
-                    incrementScore *= dragonButton.multiplier;
-                    dragonCoins -= dragonButton.dragonUpgradeCost;
+                    gameState.incrementScore *= dragonButton.multiplier;
+                    gameState.dragonCoins -= dragonButton.dragonUpgradeCost;
                     dragonButton.dragonUpgradeCost *= 2.5f;
                 }
             }
@@ -743,13 +913,13 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 SDL_AppResult SDL_AppIterate(void* appstate)
 {
     static Uint32 lastUpdateTime = SDL_GetTicks();
-    
+
     SDL_RenderClear(renderer);
     SDL_RenderTexture(renderer, backgroundImage, NULL, NULL);
 
     renderDragons(renderer);
 
-    for (auto& dragon : dragons)
+    for (auto& dragon : gameState.dragons)
     {
         renderHealthBar(dragon, renderer); // Renderuj pasek zdrowia
     }
@@ -768,7 +938,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
     Uint32 currentTime = SDL_GetTicks();
     if (currentTime - lastUpdateTime >= 1000)
     {
-        for (auto& button : buttons)
+        for (auto& button : gameState.buttons)
         {
             if (button.isActive())
             {
