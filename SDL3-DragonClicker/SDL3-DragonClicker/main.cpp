@@ -65,7 +65,7 @@ public:
         clickField = { (WINDOW_WIDTH - squareSize) / 2.0f, (WINDOW_HEIGHT - squareSize) / 2.0f, squareSize, squareSize };
     }
 
-    Dragon(double dragonSlayedPrice, long double health, long double baseHealth)
+    Dragon(double dragonSlayedPrice, long double health, long double baseHealth) 
         : dragonSlayedPrice(dragonSlayedPrice), health(health), baseHealth(baseHealth)
     {
         if (health == 0.0) health = baseHealth;
@@ -92,7 +92,7 @@ public:
     float getH() const { return clickField.h; }
 
 private:
-    SDL_FRect clickField;
+    SDL_FRect clickField{};
 };
 
 class DragonUpgrades
@@ -856,6 +856,15 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
     {
         saveGameState(gameState);
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
+    }
+
+    if (event->type == SDL_EVENT_KEY_DOWN) 
+    {
+        if (event->key.key == SDLK_ESCAPE) 
+        {
+            saveGameState(gameState);
+            return SDL_APP_SUCCESS;
+        }
     }
 
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)

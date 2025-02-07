@@ -1,23 +1,23 @@
 {
     "buttons": [
         {
-            "incrementValue": 1.700000286102295,
+            "incrementValue": 2.1000001430511475,
             "isActive": true,
-            "upgradeCost": 1109.3062744140625
+            "upgradeCost": 2300.258056640625
         },
         {
-            "incrementValue": 7.5,
+            "incrementValue": 9.0,
             "isActive": true,
-            "upgradeCost": 1540.7030029296875
+            "upgradeCost": 2662.335205078125
         },
         {
-            "incrementValue": 20.0,
+            "incrementValue": 21.0,
             "isActive": true,
-            "upgradeCost": 7667.5263671875
+            "upgradeCost": 9201.0322265625
         }
     ],
     "dragonButtons": [],
-    "dragonCoins": 143.5957614183426,
+    "dragonCoins": 325.49470177292824,
     "dragonUpgrades": [
         {
             "cost": 387,
@@ -30,12 +30,12 @@
     ],
     "dragons": [
         {
-            "baseHealth": 19461.95068359375,
-            "dragonSlayedPrice": 181.89894035458565,
-            "health": 16288.302228927612
+            "baseHealth": 29192.926025390625,
+            "dragonSlayedPrice": 227.37367544323206,
+            "health": 27055.590097427368
         }
     ],
     "incrementScore": 79.1015625,
-    "lastSaveTime": "2025-02-06T22:26:52+0100",
-    "score": 2930.4192571491003
+    "lastSaveTime": "2025-02-07T18:00:18+0100",
+    "score": 2178.892636165023
 }
