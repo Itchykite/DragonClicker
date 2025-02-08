@@ -432,6 +432,7 @@ void createButtons()
         gameState.buttons.emplace_back(50, 0.0f, 0.1f);
         gameState.buttons.emplace_back(100, 0.0f, 0.5f);
         gameState.buttons.emplace_back(200, 0.0f, 1.0f);
+        gameState.buttons.emplace_back(500, 0.0f, 2.0f);
     }
 }
 
