@@ -8,6 +8,7 @@
  * This code is public domain. Feel free to use it for any purpose!
  */
 
+#define SDLK_p_renamed_SDLK_P
 #define _CRT_SECURE_NO_WARNINGS
 #define SDL_MAIN_USE_CALLBACKS 1  /* use the callbacks instead of main() */
 #include <SDL3/SDL.h>
@@ -49,6 +50,8 @@ static SDL_Texture* dragonCoin = nullptr;
 Uint32 lastIncrementTime = 0;
 Uint32 lastSaveTime = SDL_GetTicks();
 const Uint32 autoSaveInterval = 60000;
+
+struct SidePanel;
 
 class Dragon
 {
@@ -165,11 +168,13 @@ class UpgradeButton
 public:
     SDL_Texture* texture = nullptr;
     SDL_FRect textRect{};
+    SDL_FRect upgradeButtonField{};
 
     bool isObjectUpgrading = false;
     float incrementValue;
     float upgradeCost;
     static Uint32 lastUpdateTime;
+    static float yOffset; // Przechowuje przesuniêcie w osi Y dla kolejnych przycisków
 
     UpgradeButton(float upgradeCost, float incrementValue, float incrementValueChange)
         : upgradeCost(upgradeCost), incrementValue(incrementValue), incrementValueChange(incrementValueChange), isObjectUpgrading(false)
@@ -214,10 +219,11 @@ public:
 
         if (texture)
         {
-            textRect.x = upgradeButtonField.x + (upgradeButtonField.w - textRect.w) / 2;
-            textRect.y = upgradeButtonField.y + (upgradeButtonField.h - textRect.h) / 2;
+            SDL_FRect textPos = textRect;
+            textPos.x = upgradeButtonField.x + (upgradeButtonField.w - textRect.w) / 2;
+            textPos.y = upgradeButtonField.y + (upgradeButtonField.h - textRect.h) / 2;
 
-            SDL_RenderTexture(renderer, texture, nullptr, &textRect);
+            SDL_RenderTexture(renderer, texture, nullptr, &textPos);
         }
     }
 
@@ -234,8 +240,6 @@ public:
     float getIncrementValueChange() const { return incrementValueChange; }
 
 private:
-    static float yOffset; // Przechowuje przesuniêcie w osi Y dla kolejnych przycisków
-    SDL_FRect upgradeButtonField{};
     float incrementValueChange;
 };
 
@@ -278,134 +282,8 @@ struct GameState
 
     std::vector<Dragon> dragons{};
     std::vector<DragonUpgrades> dragonButtons{};
-    std::vector<UpgradeButton> buttons{};
 };
 
-void saveGameState(const GameState& gameState)
-{
-    nlohmann::json jsonData;
-
-    jsonData["score"] = gameState.score;
-    jsonData["incrementScore"] = gameState.incrementScore;
-    jsonData["dragonCoins"] = gameState.dragonCoins;
-
-    jsonData["lastSaveTime"] = getCurrentDateTime();
-
-    jsonData["dragons"] = nlohmann::json::array();
-    for (const auto& dragon : gameState.dragons)
-    {
-        jsonData["dragons"].push_back({
-            {"health", dragon.health},
-            {"baseHealth", dragon.baseHealth},
-            {"dragonSlayedPrice", dragon.dragonSlayedPrice}
-            });
-    }
-
-    jsonData["dragonButtons"] = nlohmann::json::array();
-    for (const auto& upgrade : gameState.dragonButtons)
-    {
-        std::cout << "Zapisywanie DragonUpgradeButton - Koszt: " << upgrade.getDragonUpgradeCost() << ", Mno¿nik: " << upgrade.getMultiplier() << std::endl; // Log zapisywania DragonUpgradeButton
-        jsonData["dragonUpgrades"].push_back({
-            {"multiplier", upgrade.getMultiplier()},
-            {"cost", upgrade.getDragonUpgradeCost()}
-            });
-    }
-
-    jsonData["buttons"] = nlohmann::json::array();
-    for (const auto& button : gameState.buttons)
-    {
-        std::cout << "Zapisywanie UpgradeButton - Koszt ulepszenia (przed zapisem JSON): " << button.getUpgradeCost() << ", Increment value: " << button.getIncrementValue() << ", Aktywny: " << button.isActive() << std::endl; // LOG 3: Wypisujemy cenê przed zapisem do JSON
-        jsonData["buttons"].push_back({
-            {"incrementValue", button.getIncrementValue()},
-            {"upgradeCost", button.getUpgradeCost()},
-            {"isActive", button.isActive()}
-            });
-    }
-
-    std::ofstream file("savegame.json");
-    if (file)
-    {
-        file << std::setw(4) << jsonData << std::endl;
-    }
-}
-
-void loadGameState(GameState& gameState)
-{
-    std::ifstream file("savegame.json");
-    if (!file)
-    {
-        std::cout << "Brak pliku zapisu! Tworzenie nowej gry." << std::endl;
-        return;
-    }
-
-    nlohmann::json jsonData;
-    file >> jsonData;
-
-    gameState.score = jsonData.value("score", 0.0);
-    gameState.incrementScore = jsonData.value("incrementScore", 1.0);
-    gameState.dragonCoins = jsonData.value("dragonCoins", 0.0);
-    gameState.lastSaveTime = jsonData.value("lastSaveTime", "");
-
-    gameState.dragons.clear();
-    for (const auto& dragonData : jsonData["dragons"])
-    {
-        Dragon dragon(dragonData["dragonSlayedPrice"].get<double>());
-        dragon.health = dragonData["health"].get<long double>();
-        dragon.baseHealth = dragonData["baseHealth"].get<long double>();
-        gameState.dragons.push_back(dragon);
-    }
-
-    gameState.dragonButtons.clear();
-    int dragonButtonIndex = 0;
-    for (const auto& upgradeData : jsonData["dragonUpgrades"])
-    {
-        float loadedDragonUpgradeCost = upgradeData.value("cost", 10.0f);
-        long double loadedMultiplier = upgradeData.value("multiplier", 1.5);
-
-        std::cout << "£adowanie DragonUpgradeButton [" << dragonButtonIndex << "] - Koszt: " << loadedDragonUpgradeCost << ", Mno¿nik: " << loadedMultiplier << std::endl; // Log ³adowania DragonUpgradeButton
-        gameState.dragonButtons.emplace_back(
-            static_cast<long int>(loadedDragonUpgradeCost),
-            loadedMultiplier
-        );
-        dragonButtonIndex++;
-    }
-    std::cout << "Za³adowano " << gameState.dragonButtons.size() << " DragonUpgradeButtons." << std::endl;
-
-    gameState.buttons.clear();
-    int buttonIndex = 0;
-    for (const auto& buttonData : jsonData["buttons"])
-    {
-        float loadedUpgradeCost = buttonData.value("upgradeCost", 50.0f);
-        float loadedIncrementValue = buttonData.value("incrementValue", 0.0f);
-        bool loadedIsActive = buttonData.value("isActive", false);
-
-        std::cout << "£adowanie UpgradeButton [" << buttonIndex << "] - Koszt ulepszenia (z JSON): " << loadedUpgradeCost << ", Increment value: " << loadedIncrementValue << ", Aktywny: " << loadedIsActive << std::endl; // LOG 1: Wypisujemy wartoœæ za³adowan¹ z JSON
-
-        float incrementValueChangeValues[] = { 0.1f, 0.5f, 1.0f };
-        float incrementValueChangeToUse = 0.1f;
-        if (buttonIndex < sizeof(incrementValueChangeValues) / sizeof(incrementValueChangeValues[0]))
-        {
-            incrementValueChangeToUse = incrementValueChangeValues[buttonIndex];
-        }
-
-
-        gameState.buttons.emplace_back(
-            loadedUpgradeCost,
-            loadedIncrementValue,
-            incrementValueChangeToUse
-        );
-
-        std::cout << "£adowanie UpgradeButton [" << buttonIndex << "] - Koszt ulepszenia (po utworzeniu obiektu): " << gameState.buttons.back().upgradeCost << std::endl; // LOG 2: Wypisujemy cenê obiektu button po utworzeniu
-
-        if (loadedIsActive)
-        {
-            gameState.buttons.back().activate();
-        }
-        buttonIndex++;
-    }
-
-    std::cout << "Za³adowano " << gameState.buttons.size() << " UpgradeButtons." << std::endl;
-}
 
 static GameState gameState;
 
@@ -415,40 +293,6 @@ void UpgradeButton::incrementScore()
     {
         gameState.score += incrementValue;
     }
-}
-
-void renderButtons(SDL_Renderer* renderer)
-{
-    for (auto& button : gameState.buttons)
-    {
-        button.render(renderer);
-    }
-}
-
-void createButtons()
-{
-    if (gameState.buttons.empty())
-    {
-        gameState.buttons.emplace_back(50, 0.0f, 0.1f);
-        gameState.buttons.emplace_back(100, 0.0f, 0.5f);
-        gameState.buttons.emplace_back(200, 0.0f, 1.0f);
-        gameState.buttons.emplace_back(500, 0.0f, 2.0f);
-    }
-}
-
-float incrementValueCheck()
-{
-    float incrementValue = 0.0f;
-
-    for (const auto& button : gameState.buttons)
-    {
-        if (button.isActive())
-        {
-            incrementValue += button.getIncrementValue();
-        }
-    }
-
-    return incrementValue;
 }
 
 void createDragonButtons()
@@ -484,15 +328,6 @@ void renderDragons(SDL_Renderer* renderer)
     }
 }
 
-void updateInterval()
-{
-    if (SDL_GetTicks() - lastSaveTime > autoSaveInterval)
-    {
-        saveGameState(gameState);
-        lastSaveTime = SDL_GetTicks();
-    }
-}
-
 void updateScoreText()
 {
     if (texture)
@@ -511,30 +346,6 @@ void updateScoreText()
     if (text)
     {
         texture = SDL_CreateTextureFromSurface(renderer, text);
-        SDL_DestroySurface(text);
-    }
-}
-
-void updateIncrementValueText()
-{
-    float incrementValue = incrementValueCheck();
-
-    if (incrementValueTexture)
-    {
-        SDL_DestroyTexture(incrementValueTexture); // Usuwamy star¹ teksturê
-        incrementValueTexture = NULL;
-    }
-
-    std::ostringstream stream;
-    stream << std::fixed << std::setprecision(2) << incrementValue;
-    std::string incrementValueS = stream.str();
-
-    SDL_Color color = { 0, 0, 0, 255 };
-    SDL_Surface* text = TTF_RenderText_Blended(incrementValueFont, incrementValueS.c_str(), 0, color);
-
-    if (text)
-    {
-        incrementValueTexture = SDL_CreateTextureFromSurface(renderer, text);
         SDL_DestroySurface(text);
     }
 }
@@ -699,38 +510,6 @@ void updateDragonCoinText(SDL_Renderer* renderer)
     }
 }
 
-void updateButtonText(SDL_Renderer* renderer)
-{
-    for (auto& button : gameState.buttons)
-    {
-        if (button.texture)
-        {
-            SDL_DestroyTexture(button.texture);
-            button.texture = nullptr;
-        }
-    }
-
-    SDL_Color color = { 0, 0, 0, 255 };
-
-    for (auto& button : gameState.buttons)
-    {
-        std::ostringstream stream;
-        stream << "Cost: " << std::fixed << std::setprecision(2) << button.upgradeCost;
-        std::string textString = stream.str();
-
-        SDL_Surface* textSurface = TTF_RenderText_Blended(upgradeValueFont, textString.c_str(), 0, color);
-        if (textSurface)
-        {
-            button.texture = SDL_CreateTextureFromSurface(renderer, textSurface);
-
-            button.textRect.w = textSurface->w;
-            button.textRect.h = textSurface->h;
-
-            SDL_DestroySurface(textSurface);
-        }
-    }
-}
-
 void updateDragonButtonText(SDL_Renderer* renderer)
 {
     for (auto& dragonButton : gameState.dragonButtons)
@@ -760,6 +539,311 @@ void updateDragonButtonText(SDL_Renderer* renderer)
 
             SDL_DestroySurface(textSurface);
         }
+    }
+}
+
+struct SidePanel
+{
+    int x, y, w, h;
+    int targetX;
+    bool visible;
+    std::vector<UpgradeButton> buttons;
+
+    SidePanel(int startX, int y, int w, int h)
+        : x(startX), y(y), w(w), h(h), targetX(startX), visible(false) {
+    }
+
+    void toggle()
+    {
+        visible = !visible;
+        targetX = visible ? WINDOW_WIDTH - w : WINDOW_WIDTH;
+    }
+
+    void update(float deltaTime)
+    {
+        float speed = 1000 * deltaTime;
+
+        if (x < targetX)
+        {
+            x += speed;
+            if (x > targetX) x = targetX;
+        }
+        else if (x > targetX)
+        {
+            x -= speed;
+            if (x < targetX) x = targetX;
+        }
+    }
+
+
+    void render(SDL_Renderer* renderer)
+    {
+        if (!visible) return;
+
+        SDL_SetRenderDrawColor(renderer, 50, 50, 50, 255);
+        SDL_FRect rect = { x, y, w, h };
+        SDL_RenderFillRect(renderer, &rect);
+
+        for (auto& button : buttons)
+        {
+            SDL_FRect buttonRect = button.upgradeButtonField;
+            buttonRect.x = x + 10;
+            button.render(renderer);
+        }
+    }
+};
+
+SidePanel sidePanel(WINDOW_WIDTH, 0, 300, WINDOW_HEIGHT);
+
+void updateButtonText(SDL_Renderer* renderer, SidePanel& sidePanel)
+{
+    if (sidePanel.buttons.empty()) return; // Jeœli nie ma przycisków, nic nie rób
+
+    for (auto& button : sidePanel.buttons)
+    {
+        if (button.texture)
+        {
+            SDL_DestroyTexture(button.texture);
+            button.texture = nullptr;
+        }
+    }
+
+    SDL_Color color = { 0, 0, 0, 255 };
+
+    for (auto& button : sidePanel.buttons)
+    {
+        std::ostringstream stream;
+        stream << "Cost: " << std::fixed << std::setprecision(2) << button.upgradeCost;
+        std::string textString = stream.str();
+
+        SDL_Surface* textSurface = TTF_RenderText_Blended(upgradeValueFont, textString.c_str(), 0, color);
+        if (textSurface)
+        {
+            button.texture = SDL_CreateTextureFromSurface(renderer, textSurface);
+            button.textRect.w = textSurface->w;
+            button.textRect.h = textSurface->h;
+            SDL_DestroySurface(textSurface);
+        }
+    }
+}
+
+void createButtons(SidePanel& sidePanel)
+{
+    UpgradeButton::yOffset = 100.0f;
+
+    sidePanel.buttons.clear();
+    sidePanel.buttons.emplace_back(50, 0.0f, 0.1f);
+    sidePanel.buttons.emplace_back(100, 0.0f, 0.5f);
+    sidePanel.buttons.emplace_back(200, 0.0f, 1.0f);
+    sidePanel.buttons.emplace_back(500, 0.0f, 2.0f);
+
+    updateButtonText(renderer, sidePanel);
+}
+
+struct Button 
+{
+    SDL_FRect rect;
+    SDL_Texture* texture = nullptr;
+
+    Button(float x, float y, float w, float h) 
+    {
+        rect = { x, y, w, h };
+    }
+
+    void render(SDL_Renderer* renderer)
+    {
+        SDL_SetRenderDrawColor(renderer, 200, 200, 200, 255);
+        SDL_RenderFillRect(renderer, &rect);
+    }
+
+    bool isClicked(float mouseX, float mouseY) 
+    {
+        return (mouseX >= rect.x && mouseX <= rect.x + rect.w &&
+            mouseY >= rect.y && mouseY <= rect.y + rect.h);
+    }
+};
+
+Button togglePanelButton(WINDOW_WIDTH - 60, 20, 40, 40);
+
+float incrementValueCheck()
+{
+    float incrementValue = 0.0f;
+
+    for (const auto& button : sidePanel.buttons)
+    {
+        if (button.isActive())
+        {
+            incrementValue += button.getIncrementValue();
+        }
+    }
+
+    return incrementValue;
+}
+
+void updateIncrementValueText()
+{
+    float incrementValue = incrementValueCheck();
+
+    if (incrementValueTexture)
+    {
+        SDL_DestroyTexture(incrementValueTexture); // Usuwamy star¹ teksturê
+        incrementValueTexture = NULL;
+    }
+
+    std::ostringstream stream;
+    stream << std::fixed << std::setprecision(2) << incrementValue;
+    std::string incrementValueS = stream.str();
+
+    SDL_Color color = { 0, 0, 0, 255 };
+    SDL_Surface* text = TTF_RenderText_Blended(incrementValueFont, incrementValueS.c_str(), 0, color);
+
+    if (text)
+    {
+        incrementValueTexture = SDL_CreateTextureFromSurface(renderer, text);
+        SDL_DestroySurface(text);
+    }
+}
+
+void renderButtons(SDL_Renderer* renderer)
+{
+    for (auto& button : sidePanel.buttons)
+    {
+        button.render(renderer);
+    }
+}
+
+void saveGameState(const GameState& gameState)
+{
+    nlohmann::json jsonData;
+
+    jsonData["score"] = gameState.score;
+    jsonData["incrementScore"] = gameState.incrementScore;
+    jsonData["dragonCoins"] = gameState.dragonCoins;
+
+    jsonData["lastSaveTime"] = getCurrentDateTime();
+
+    jsonData["dragons"] = nlohmann::json::array();
+    for (const auto& dragon : gameState.dragons)
+    {
+        jsonData["dragons"].push_back({
+            {"health", dragon.health},
+            {"baseHealth", dragon.baseHealth},
+            {"dragonSlayedPrice", dragon.dragonSlayedPrice}
+            });
+    }
+
+    jsonData["dragonButtons"] = nlohmann::json::array();
+    for (const auto& upgrade : gameState.dragonButtons)
+    {
+        std::cout << "Zapisywanie DragonUpgradeButton - Koszt: " << upgrade.getDragonUpgradeCost() << ", Mno¿nik: " << upgrade.getMultiplier() << std::endl; // Log zapisywania DragonUpgradeButton
+        jsonData["dragonUpgrades"].push_back({
+            {"multiplier", upgrade.getMultiplier()},
+            {"cost", upgrade.getDragonUpgradeCost()}
+            });
+    }
+
+    jsonData["buttons"] = nlohmann::json::array();
+    for (const auto& button : sidePanel.buttons)
+    {
+        std::cout << "Zapisywanie UpgradeButton - Koszt ulepszenia (przed zapisem JSON): " << button.getUpgradeCost() << ", Increment value: " << button.getIncrementValue() << ", Aktywny: " << button.isActive() << std::endl; // LOG 3: Wypisujemy cenê przed zapisem do JSON
+        jsonData["buttons"].push_back({
+            {"incrementValue", button.getIncrementValue()},
+            {"upgradeCost", button.getUpgradeCost()},
+            {"isActive", button.isActive()}
+            });
+    }
+
+    std::ofstream file("savegame.json");
+    if (file)
+    {
+        file << std::setw(4) << jsonData << std::endl;
+    }
+}
+
+void loadGameState(GameState& gameState)
+{
+    std::ifstream file("savegame.json");
+    if (!file)
+    {
+        std::cout << "Brak pliku zapisu! Tworzenie nowej gry." << std::endl;
+        return;
+    }
+
+    nlohmann::json jsonData;
+    file >> jsonData;
+
+    gameState.score = jsonData.value("score", 0.0);
+    gameState.incrementScore = jsonData.value("incrementScore", 1.0);
+    gameState.dragonCoins = jsonData.value("dragonCoins", 0.0);
+    gameState.lastSaveTime = jsonData.value("lastSaveTime", "");
+
+    gameState.dragons.clear();
+    for (const auto& dragonData : jsonData["dragons"])
+    {
+        Dragon dragon(dragonData["dragonSlayedPrice"].get<double>());
+        dragon.health = dragonData["health"].get<long double>();
+        dragon.baseHealth = dragonData["baseHealth"].get<long double>();
+        gameState.dragons.push_back(dragon);
+    }
+
+    gameState.dragonButtons.clear();
+    int dragonButtonIndex = 0;
+    for (const auto& upgradeData : jsonData["dragonUpgrades"])
+    {
+        float loadedDragonUpgradeCost = upgradeData.value("cost", 10.0f);
+        long double loadedMultiplier = upgradeData.value("multiplier", 1.5);
+
+        std::cout << "£adowanie DragonUpgradeButton [" << dragonButtonIndex << "] - Koszt: " << loadedDragonUpgradeCost << ", Mno¿nik: " << loadedMultiplier << std::endl; // Log ³adowania DragonUpgradeButton
+        gameState.dragonButtons.emplace_back(
+            static_cast<long int>(loadedDragonUpgradeCost),
+            loadedMultiplier
+        );
+        dragonButtonIndex++;
+    }
+    std::cout << "Za³adowano " << gameState.dragonButtons.size() << " DragonUpgradeButtons." << std::endl;
+
+    sidePanel.buttons.clear();
+    int buttonIndex = 0;
+    for (const auto& buttonData : jsonData["buttons"])
+    {
+        float loadedUpgradeCost = buttonData.value("upgradeCost", 50.0f);
+        float loadedIncrementValue = buttonData.value("incrementValue", 0.0f);
+        bool loadedIsActive = buttonData.value("isActive", false);
+
+        std::cout << "£adowanie UpgradeButton [" << buttonIndex << "] - Koszt ulepszenia (z JSON): " << loadedUpgradeCost << ", Increment value: " << loadedIncrementValue << ", Aktywny: " << loadedIsActive << std::endl; // LOG 1: Wypisujemy wartoœæ za³adowan¹ z JSON
+
+        float incrementValueChangeValues[] = { 0.1f, 0.5f, 1.0f };
+        float incrementValueChangeToUse = 0.1f;
+        if (buttonIndex < sizeof(incrementValueChangeValues) / sizeof(incrementValueChangeValues[0]))
+        {
+            incrementValueChangeToUse = incrementValueChangeValues[buttonIndex];
+        }
+
+
+        sidePanel.buttons.emplace_back(
+            loadedUpgradeCost,
+            loadedIncrementValue,
+            incrementValueChangeToUse
+        );
+
+        std::cout << "£adowanie UpgradeButton [" << buttonIndex << "] - Koszt ulepszenia (po utworzeniu obiektu): " << sidePanel.buttons.back().upgradeCost << std::endl; // LOG 2: Wypisujemy cenê obiektu button po utworzeniu
+
+        if (loadedIsActive)
+        {
+            sidePanel.buttons.back().activate();
+        }
+        buttonIndex++;
+    }
+
+    std::cout << "Za³adowano " << sidePanel.buttons.size() << " UpgradeButtons." << std::endl;
+}
+
+void updateInterval()
+{
+    if (SDL_GetTicks() - lastSaveTime > autoSaveInterval)
+    {
+        saveGameState(gameState);
+        lastSaveTime = SDL_GetTicks();
     }
 }
 
@@ -843,7 +927,7 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
     }
 
     updateScoreText();
-    createButtons();
+    createButtons(sidePanel);
     createDragons();
     createDragonButtons();
 
@@ -859,12 +943,20 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
     }
 
-    if (event->type == SDL_EVENT_KEY_DOWN) 
+    if (event->key.key == SDLK_ESCAPE)
     {
-        if (event->key.key == SDLK_ESCAPE) 
+        saveGameState(gameState);
+        return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
+    }
+
+    if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+    {
+        float mouseX, mouseY;
+        SDL_GetMouseState(&mouseX, &mouseY);
+
+        if (togglePanelButton.isClicked(mouseX, mouseY))
         {
-            saveGameState(gameState);
-            return SDL_APP_SUCCESS;
+            sidePanel.toggle();
         }
     }
 
@@ -895,7 +987,7 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
             }
         }
 
-        for (auto& button : gameState.buttons)
+        for (auto& button : sidePanel.buttons)
         {
             if (mouseX >= button.getX() && mouseX <= button.getX() + button.getW() &&
                 mouseY >= button.getY() && mouseY <= button.getY() + button.getH())
@@ -966,7 +1058,7 @@ SDL_AppResult SDL_AppIterate(void* appstate)
 
     if (currentTime - lastUpdateTime >= 1000)
     {
-        for (auto& button : gameState.buttons)
+        for (auto& button : sidePanel.buttons)
         {
             if (button.isActive())
             {
@@ -994,14 +1086,17 @@ SDL_AppResult SDL_AppIterate(void* appstate)
             renderHealthBar(dragon, renderer); // Renderuj pasek 
         }
     }
+    
+    togglePanelButton.render(renderer);
+    sidePanel.update(1.0f / 60.0f); // Zak³adamy 60 FPS
+    sidePanel.render(renderer);
 
     renderHealthValueText();
     updateHealthValueText();
     renderScoreText();
     renderIncrementValueText();
-    renderButtons(renderer);
     renderDragonButtons(renderer);
-    updateButtonText(renderer);
+    updateButtonText(renderer, sidePanel);
     renderDragonCoinText();
     updateDragonCoinText(renderer);
     updateDragonButtonText(renderer);
