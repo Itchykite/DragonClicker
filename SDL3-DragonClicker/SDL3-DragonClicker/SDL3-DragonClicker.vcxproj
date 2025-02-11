@@ -147,6 +147,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="DragonClass\DragonButtons.cpp" />
     <ClCompile Include="DragonClass\DragonClass.cpp" />
     <ClCompile Include="DragonUpgradeClass\DragonUpgradeButtons.cpp" />
