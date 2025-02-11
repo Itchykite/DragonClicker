@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -76,7 +76,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>F:\lib\json-develop\json-develop\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\lib\json-develop\json-develop\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;C:\Users\cyran\source\repos\Itchykite\DragonClicker\SDL3-DragonClicker\SDL3-DragonClicker\Headers;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -95,7 +95,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>F:\lib\json-develop\json-develop\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\lib\json-develop\json-develop\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;C:\Users\cyran\source\repos\Itchykite\DragonClicker\SDL3-DragonClicker\SDL3-DragonClicker\Headers;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -114,7 +114,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>F:\lib\json-develop\json-develop\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;C:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;C:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;C:\lib\json-develop\include;C:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;C:\lib\SDL3_image-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\lib\json-develop\json-develop\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;C:\Users\cyran\source\repos\Itchykite\DragonClicker\SDL3-DragonClicker\SDL3-DragonClicker\Headers;C:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;C:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;C:\lib\json-develop\include;C:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;C:\lib\SDL3_image-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -133,7 +133,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>F:\lib\json-develop\json-develop\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>F:\lib\json-develop\json-develop\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;C:\Users\cyran\source\repos\Itchykite\DragonClicker\SDL3-DragonClicker\SDL3-DragonClicker\Headers;F:\lib\SDL3_image-devel-3.2.0-VC\SDL3_image-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;F:\lib\SDL3_ttf-devel-3.1.0-VC\SDL3_ttf-3.1.0\include;F:\lib\SDL3-devel-3.2.0-VC\SDL3-3.2.0\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -147,7 +147,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DragonButtons.cpp" />
+    <ClCompile Include="DragonClass.cpp" />
+    <ClCompile Include="DragonCoins.cpp" />
+    <ClCompile Include="DragonHealth.cpp" />
+    <ClCompile Include="DragonUpgradeButtons.cpp" />
+    <ClCompile Include="DragonUpgradeClass.cpp" />
+    <ClCompile Include="GameStateStruct.cpp" />
+    <ClCompile Include="global.hpp" />
+    <ClCompile Include="IncrementValue.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Score.cpp" />
+    <ClCompile Include="ToggleButtonClass.hpp" />
+    <ClCompile Include="UpgradeButtonClass.cpp" />
+    <ClCompile Include="UpgradeButtons.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DragonClass.hpp" />
+    <ClInclude Include="DragonUpgradeClass.hpp" />
+    <ClInclude Include="DragonUpgradeToggleButtonClass.hpp" />
+    <ClInclude Include="GameStateStruct.hpp" />
+    <ClInclude Include="headers.hpp" />
+    <ClInclude Include="includeHeaders.hpp" />
+    <ClInclude Include="UpgradeButtonClass.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

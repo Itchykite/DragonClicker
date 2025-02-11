@@ -12,12 +12,12 @@
         },
         {
             "incrementValue": 0.0,
-            "isActive": true,
+            "isActive": false,
             "upgradeCost": 200.0
         },
         {
             "incrementValue": 0.0,
-            "isActive": true,
+            "isActive": false,
             "upgradeCost": 500.0
         }
     ],
@@ -37,10 +37,10 @@
         {
             "baseHealth": 150.0,
             "dragonSlayedPrice": 12.5,
-            "health": 107.89999996870756
+            "health": 146.69999999552965
         }
     ],
     "incrementScore": 1.0,
-    "lastSaveTime": "2025-02-11T12:24:52+0100",
-    "score": 93.00000008940697
+    "lastSaveTime": "2025-02-11T17:35:36+0100",
+    "score": 63.80000039935112
 }
