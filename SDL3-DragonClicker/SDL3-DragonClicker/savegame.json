@@ -22,7 +22,7 @@
         }
     ],
     "dragonButtons": [],
-    "dragonCoins": 0.0,
+    "dragonCoins": 10.0,
     "dragonUpgrades": [
         {
             "cost": 10,
@@ -35,12 +35,12 @@
     ],
     "dragons": [
         {
-            "baseHealth": 100.0,
-            "dragonSlayedPrice": 10.0,
-            "health": 42.19999998807907
+            "baseHealth": 150.0,
+            "dragonSlayedPrice": 12.5,
+            "health": 107.89999996870756
         }
     ],
     "incrementScore": 1.0,
-    "lastSaveTime": "2025-02-08T22:53:35+0100",
-    "score": 7.800000011920929
+    "lastSaveTime": "2025-02-11T12:24:52+0100",
+    "score": 93.00000008940697
 }

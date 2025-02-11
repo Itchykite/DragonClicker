@@ -49,6 +49,8 @@ static SDL_Texture* dragonCoin = nullptr;
 Uint32 lastIncrementTime = 0;
 Uint32 lastSaveTime = SDL_GetTicks();
 const Uint32 autoSaveInterval = 60000;
+bool isSidePanelVisible = false;
+bool isDragonUpgradeSidePanelVisible = false;
 
 class Dragon
 {
@@ -111,10 +113,10 @@ public:
         int margin = 20;
         float rectangleHeight = squareSize / 4;
 
-        // Automatyczne pozycjonowanie przycisków jeden pod drugim
+        // Automatyczne pozycjonowanie przycisków jeden pod drugim po prawej stronie
         upgradeButtonField =
         {
-            static_cast<float>(margin), // Lewa krawêdŸ z marginesem
+            WINDOW_WIDTH - squareSize - margin,
             static_cast<float>(yOffset),
             squareSize,
             rectangleHeight
@@ -419,6 +421,8 @@ void UpgradeButton::incrementScore()
 
 void renderButtons(SDL_Renderer* renderer)
 {
+    if (!isSidePanelVisible) return;
+
     for (auto& button : gameState.buttons)
     {
         button.render(renderer);
@@ -462,6 +466,8 @@ void createDragonButtons()
 
 void renderDragonButtons(SDL_Renderer* renderer)
 {
+    if (!isDragonUpgradeSidePanelVisible) return;
+
     for (auto& dragonButton : gameState.dragonButtons)
     {
         dragonButton.render(renderer);
@@ -763,12 +769,153 @@ void updateDragonButtonText(SDL_Renderer* renderer)
     }
 }
 
+class ToggleButton
+{
+public:
+    SDL_Texture* texture = nullptr;
+    SDL_FRect textRect{};
+    SDL_FRect buttonRect{};
+
+    ToggleButton()
+    {
+        buttonRect = { static_cast<float>(WINDOW_WIDTH) - 100, 50, 40, 40 };
+    }
+
+    ~ToggleButton()
+    {
+        if (texture)
+        {
+            SDL_DestroyTexture(texture);
+        }
+    }
+
+    void render(SDL_Renderer* renderer)
+    {
+        SDL_SetRenderDrawColor(renderer, 10, 10, 10, 255); // Niebieski kolor
+        SDL_RenderFillRect(renderer, &buttonRect);
+
+        if (texture)
+        {
+            textRect.x = buttonRect.x + (buttonRect.w - textRect.w) / 2;
+            textRect.y = buttonRect.y + (buttonRect.h - textRect.h) / 2;
+
+            SDL_RenderTexture(renderer, texture, nullptr, &textRect);
+        }
+    }
+
+    bool isClicked(float mouseX, float mouseY)
+    {
+        return mouseX >= buttonRect.x && mouseX <= buttonRect.x + buttonRect.w &&
+            mouseY >= buttonRect.y && mouseY <= buttonRect.y + buttonRect.h;
+    }
+};
+
+ToggleButton upgradeToggleButton;
+
+class DragonUpgradeToggleButton
+{
+public:
+    SDL_Texture* texture = nullptr;
+    SDL_FRect textRect{};
+    SDL_FRect buttonRect{};
+
+    DragonUpgradeToggleButton()
+    {
+        buttonRect = { static_cast<float>(WINDOW_WIDTH) - 50, 50, 40, 40 };
+    }
+
+    ~DragonUpgradeToggleButton()
+    {
+        if (texture)
+        {
+            SDL_DestroyTexture(texture);
+        }
+    }
+
+    void render(SDL_Renderer* renderer)
+    {
+        SDL_SetRenderDrawColor(renderer, 10, 10, 10, 255); // Niebieski kolor
+        SDL_RenderFillRect(renderer, &buttonRect);
+
+        if (texture)
+        {
+            textRect.x = buttonRect.x + (buttonRect.w - textRect.w) / 2;
+            textRect.y = buttonRect.y + (buttonRect.h - textRect.h) / 2;
+
+            SDL_RenderTexture(renderer, texture, nullptr, &textRect);
+        }
+    }
+
+    bool isClicked(float mouseX, float mouseY)
+    {
+        return mouseX >= buttonRect.x && mouseX <= buttonRect.x + buttonRect.w &&
+            mouseY >= buttonRect.y && mouseY <= buttonRect.y + buttonRect.h;
+    }
+};
+
+DragonUpgradeToggleButton dragonUpgradeToggleButton;
+
+void renderSidePanel(SDL_Renderer* renderer)
+{
+    if (isSidePanelVisible)
+    {
+        SDL_FRect sidePanel = { WINDOW_WIDTH - 300, 0, 300, WINDOW_HEIGHT };
+        SDL_SetRenderDrawColor(renderer, 50, 50, 50, 128); // Szary kolor
+        SDL_RenderFillRect(renderer, &sidePanel);
+    }
+
+    if (isDragonUpgradeSidePanelVisible)
+    {
+        SDL_FRect sidePanel = { WINDOW_WIDTH - 300, 0, 300, WINDOW_HEIGHT };
+        SDL_SetRenderDrawColor(renderer, 50, 50, 50, 128); // Szary kolor
+        SDL_RenderFillRect(renderer, &sidePanel);
+    }
+}
+
+void updateToggleButtonText(SDL_Renderer* renderer)
+{
+    if (upgradeToggleButton.texture)
+    {
+        SDL_DestroyTexture(upgradeToggleButton.texture);
+        upgradeToggleButton.texture = nullptr;
+    }
+
+    SDL_Color color = { 255, 255, 255, 255 };
+    SDL_Surface* textSurface = TTF_RenderText_Blended(font, "Toggle", 0, color);
+    if (textSurface)
+    {
+        upgradeToggleButton.texture = SDL_CreateTextureFromSurface(renderer, textSurface);
+        upgradeToggleButton.textRect.w = textSurface->w;
+        upgradeToggleButton.textRect.h = textSurface->h;
+        SDL_DestroySurface(textSurface);
+    }
+}
+
+void updateDragonUpgradeToggleButtonText(SDL_Renderer* renderer)
+{
+    if (dragonUpgradeToggleButton.texture)
+    {
+        SDL_DestroyTexture(dragonUpgradeToggleButton.texture);
+        dragonUpgradeToggleButton.texture = nullptr;
+    }
+
+    SDL_Color color = { 10, 10, 10, SDL_ALPHA_OPAQUE };
+    SDL_Surface* textSurface = TTF_RenderText_Blended(font, "Toggle", 0, color);
+    if (textSurface)
+    {
+        dragonUpgradeToggleButton.texture = SDL_CreateTextureFromSurface(renderer, textSurface);
+        dragonUpgradeToggleButton.textRect.w = textSurface->w;
+        dragonUpgradeToggleButton.textRect.h = textSurface->h;
+        SDL_DestroySurface(textSurface);
+    }
+}
+
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 {
     loadGameState(gameState);
 
-    //SDL_SetAppMetadata("Example Renderer Clear", "1.0", "com.example.renderer-clear");
+    SDL_SetAppMetadata("Example Renderer Clear", "1.0", "com.example.renderer-clear");
 
     SDL_Color color = { 255, 255, 255, SDL_ALPHA_OPAQUE };
     SDL_Surface* text;
@@ -784,6 +931,10 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
+
+    updateDragonUpgradeToggleButtonText(renderer);
+	updateToggleButtonText(renderer);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
     if (!TTF_Init())
     {
@@ -843,9 +994,9 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
     }
 
     updateScoreText();
-    createButtons();
-    createDragons();
-    createDragonButtons();
+    updateIncrementValueText();
+    updateButtonText(renderer);
+    updateDragonButtonText(renderer);
 
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
@@ -873,16 +1024,23 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
         float mouseX, mouseY;
         SDL_GetMouseState(&mouseX, &mouseY);
 
+        if (upgradeToggleButton.isClicked(mouseX, mouseY) && isDragonUpgradeSidePanelVisible == false)
+        {
+            isSidePanelVisible = !isSidePanelVisible;
+        }
+
+        if (dragonUpgradeToggleButton.isClicked(mouseX, mouseY) && isSidePanelVisible == false)
+        {
+            isDragonUpgradeSidePanelVisible = !isDragonUpgradeSidePanelVisible;
+        }
+
         for (auto& dragon : gameState.dragons)
         {
             if (mouseX >= dragon.getX() && mouseX <= dragon.getX() + dragon.getW() &&
                 mouseY >= dragon.getY() && mouseY <= dragon.getY() + dragon.getH())
             {
-                //std::cout << "Dragon health: " << dragon.health << std::endl;
-
                 if (dragon.health <= 0)
                 {
-                    //std::cout << "You slayed a dragon!" << std::endl;
                     dragon.health = dragon.baseHealth * 1.5f;
                     dragon.baseHealth = dragon.health;
                     gameState.dragonCoins += dragon.dragonSlayedPrice;
@@ -904,7 +1062,6 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
                 {
                     button.isObjectUpgrading = true;
                     UpgradeButton::lastUpdateTime = SDL_GetTicks();
-                    // std::cout << "Ulepszanie aktywowane!" << std::endl;
 
                     if (gameState.score >= button.upgradeCost)
                     {
@@ -930,22 +1087,27 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
             }
         }
 
-        for (auto& dragonButton : gameState.dragonButtons)
+        if (isDragonUpgradeSidePanelVisible)
         {
-            if (mouseX >= dragonButton.getX() && mouseX <= dragonButton.getX() + dragonButton.getW() &&
-                mouseY >= dragonButton.getY() && mouseY <= dragonButton.getY() + dragonButton.getH())
+            for (auto& dragonButton : gameState.dragonButtons)
             {
-                if (gameState.dragonCoins >= dragonButton.dragonUpgradeCost)
+                if (mouseX >= dragonButton.getX() && mouseX <= dragonButton.getX() + dragonButton.getW() &&
+                    mouseY >= dragonButton.getY() && mouseY <= dragonButton.getY() + dragonButton.getH())
                 {
-                    gameState.incrementScore *= dragonButton.multiplier;
-                    gameState.dragonCoins -= dragonButton.dragonUpgradeCost;
-                    dragonButton.dragonUpgradeCost *= 2.5f;
+                    if (gameState.dragonCoins >= dragonButton.dragonUpgradeCost)
+                    {
+                        gameState.incrementScore *= dragonButton.multiplier;
+                        gameState.dragonCoins -= dragonButton.dragonUpgradeCost;
+                        dragonButton.dragonUpgradeCost *= 2.5f;
+                    }
                 }
             }
         }
 
         updateScoreText();
         updateIncrementValueText();
+        updateButtonText(renderer); // Dodaj wywo³anie funkcji aktualizuj¹cej teksty przycisków
+        updateDragonButtonText(renderer); // Dodaj wywo³anie funkcji aktualizuj¹cej teksty przycisków
     }
 
     return SDL_APP_CONTINUE;  /* carry on with the program! */
@@ -995,12 +1157,16 @@ SDL_AppResult SDL_AppIterate(void* appstate)
         }
     }
 
+    renderSidePanel(renderer);
+    renderButtons(renderer);
+    renderDragonButtons(renderer);
+    upgradeToggleButton.render(renderer);
+    dragonUpgradeToggleButton.render(renderer);
+
     renderHealthValueText();
     updateHealthValueText();
     renderScoreText();
     renderIncrementValueText();
-    renderButtons(renderer);
-    renderDragonButtons(renderer);
     updateButtonText(renderer);
     renderDragonCoinText();
     updateDragonCoinText(renderer);
