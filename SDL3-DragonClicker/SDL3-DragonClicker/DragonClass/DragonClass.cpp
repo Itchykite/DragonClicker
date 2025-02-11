@@ -1,5 +1,5 @@
-#include "Headers/DragonClass.hpp"
-#include "Headers/global.hpp"
+#include "DragonClass.hpp"
+#include "global.hpp"
 
 Dragon::Dragon(double dragonSlayedPrice) : dragonSlayedPrice(dragonSlayedPrice)
 {

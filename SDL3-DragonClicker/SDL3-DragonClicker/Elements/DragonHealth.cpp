@@ -1,5 +1,5 @@
-#include "Headers/includeFunctions.hpp"
-#include "Headers/global.hpp"
+#include "includeFunctions.hpp"
+#include "global.hpp"
 
 void renderHealthValueText()
 {

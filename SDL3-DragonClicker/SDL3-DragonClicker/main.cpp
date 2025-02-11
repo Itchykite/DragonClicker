@@ -1,7 +1,7 @@
-#include "Headers/includeHeaders.hpp"
-#include "Headers/includeFunctions.hpp"
-#include "Headers/global.hpp"
-#include "Headers/headers.hpp"
+#include "includeHeaders.hpp"
+#include "includeFunctions.hpp"
+#include "global.hpp"
+#include "headers.hpp"
 
 std::string getCurrentDateTime()
 {
