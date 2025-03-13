@@ -1,234 +1,51 @@
-/* clear.c ... */
+#define SDL_MAIN_USE_CALLBACKS 1 
+#define _CRT_SECURE_NO_WARNINGS
 
-/*
- * This example code creates an SDL window and renderer, and then clears the
- * window to a different color every frame, so you'll effectively get a window
- * that's smoothly fading between colors.
- *
- * This code is public domain. Feel free to use it for any purpose!
- */
-
-#define SDL_MAIN_USE_CALLBACKS 1  /* use the callbacks instead of main() */
-#include <SDL3/SDL.h>
-#include <SDL3_ttf/SDL_ttf.h>
 #include <SDL3/SDL_main.h>
-
+#include "Renderer.hpp"
+#include "ToggleButton.hpp"
+#include "GameState.hpp"
+#include "UpdateRenderer.hpp"
 #include <iostream>
-#include <string>
-#include <iomanip>
 #include <sstream>
-#include <vector>
-#include <algorithm>
+#include <iomanip>
+#include <ctime>
+#include <chrono>
+#include <nlohmann/json.hpp>
+#include <SDL3_image/SDL_image.h>
 
-// Rozmiar okna
-static int WINDOW_WIDTH = 1920;
-static int WINDOW_HEIGHT = 1080;
+int WINDOW_WIDTH = 1920;
+int WINDOW_HEIGHT = 1080;
 
- /* We will use this renderer to draw into this window every frame. */
-static SDL_Window* window = NULL;
-static SDL_Renderer* renderer = NULL;
-static SDL_Texture* texture = NULL;
-static TTF_Font* font = NULL;
-TTF_Font* incrementValueFont = NULL;
+SDL_Window* window = NULL;
+SDL_Renderer* renderer = NULL;
+SDL_Texture* texture = NULL;
 SDL_Texture* incrementValueTexture = NULL;
+SDL_Texture* healthValueTexture = NULL;
+SDL_Texture* dragonCoinTexture = NULL;
+SDL_Texture* backgroundImage = nullptr;
+SDL_Texture* dragon1 = nullptr;
+SDL_Texture* dragonCoin = nullptr;
+TTF_Font* font = NULL;
+TTF_Font* incrementValueFont = NULL;
+TTF_Font* HPValueFont = NULL;
+TTF_Font* upgradeValueFont = NULL;
 
-SDL_FRect clickField;
+Uint32 lastIncrementTime = 0;
+Uint32 lastSaveTime = SDL_GetTicks();
+const Uint32 autoSaveInterval = 60000;
+bool isSidePanelVisible = false;
+bool isDragonUpgradeSidePanelVisible = false;
 
-long double score = {0.00};
-long int incrementScore = 1;
-std::string s_score = std::to_string(score);
-Uint32 lastIncrementTime = 0; // Czas ostatniej aktualizacji
+GameState gameState;
+ToggleButton upgradeToggleButton;
+DragonUpgradeToggleButton dragonUpgradeToggleButton;
 
-class UpgradeButton
-{
-public:
-    bool isObjectUpgrading = false;
-    float incrementValue;
-    float upgradeCost;
-    static Uint32 lastUpdateTime;
-
-    UpgradeButton(float upgradeCost, float incrementValue, float incrementValueChange)
-        : upgradeCost(upgradeCost), incrementValue(incrementValue), incrementValueChange(incrementValueChange), isObjectUpgrading(false)
-    {
-        float clickFieldSizePercentage = 0.25f;
-        float squareSize = static_cast<float>(std::min(WINDOW_WIDTH, WINDOW_HEIGHT) * clickFieldSizePercentage);
-        int margin = 20;
-        float rectangleHeight = squareSize / 4;
-
-        // Automatyczne pozycjonowanie przycisków jeden pod drugim
-        upgradeButtonField = 
-        {
-            WINDOW_WIDTH - squareSize - margin,
-            static_cast<float>(yOffset),
-            squareSize,
-            rectangleHeight
-        };
-
-        // Zwiêkszenie pozycji dla kolejnego przycisku
-        yOffset += rectangleHeight + 10;
-    }
-
-    void render(SDL_Renderer* renderer)
-    {
-        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-        SDL_RenderFillRect(renderer, &upgradeButtonField);
-    }
-
-    void incrementScore()
-    {
-        if (isObjectUpgrading)
-        {
-            score += incrementValue;
-        }
-    }
-
-    void upgradeScoreValue()
-    {
-        incrementValue += incrementValueChange;
-    }
-
-    float getX() const { return upgradeButtonField.x; }
-    float getY() const { return upgradeButtonField.y; }
-    float getW() const { return upgradeButtonField.w; }
-    float getH() const { return upgradeButtonField.h; }
-
-    void activate() { isObjectUpgrading = true; }
-    void deactivate() { isObjectUpgrading = false; }
-    bool isActive() const { return isObjectUpgrading; }
-    float getIncrementValue() const { return incrementValue; }
-
-private:
-    static float yOffset; // Przechowuje przesuniêcie w osi Y dla kolejnych przycisków
-    SDL_FRect upgradeButtonField{};
-    float incrementValueChange;
-};
-
-std::vector<UpgradeButton> buttons;
-float UpgradeButton::yOffset = 100.0f;
-Uint32 UpgradeButton::lastUpdateTime = 0;
-
-void createButtons()
-{
-    buttons.emplace_back(50, 0.0f, 0.1f);
-    buttons.emplace_back(100, 0.0f, 0.5f);
-    buttons.emplace_back(200, 0.0f, 1.0f);
-}
-
-void renderButtons(SDL_Renderer* renderer)
-{
-    for (auto& button : buttons)
-    {
-        button.render(renderer);
-    }
-}
-
-float incrementValueCheck()
-{
-    float incrementValue = 0.0f;
-
-    for (const auto& button : buttons)
-    {
-        if (button.isActive())
-        {
-            incrementValue += button.getIncrementValue();
-        }
-    }
-
-    return incrementValue;
-}
-
-void updateScoreText()
-{
-    if (texture)
-    {
-        SDL_DestroyTexture(texture); // Usuwamy star¹ teksturê
-        texture = NULL;
-    }
-
-    std::ostringstream stream;
-    stream << std::fixed << std::setprecision(2) << score;
-    s_score = stream.str();
-
-    SDL_Color color = { 0, 0, 0, 255 };
-    SDL_Surface* text = TTF_RenderText_Blended(font, s_score.c_str(), 0 ,color);
-
-    if (text)
-    {
-        texture = SDL_CreateTextureFromSurface(renderer, text);
-        SDL_DestroySurface(text);
-    }
-}
-
-void updateIncrementValueText()
-{
-    float incrementValue = incrementValueCheck();
-
-    if (incrementValueTexture)
-    {
-        SDL_DestroyTexture(incrementValueTexture); // Usuwamy star¹ teksturê
-        incrementValueTexture = NULL;
-    }
-
-    std::ostringstream stream;
-    stream << std::fixed << std::setprecision(2) << incrementValue;
-    std::string incrementValueS = stream.str();
-
-    SDL_Color color = { 0, 0, 0, 255 };
-    SDL_Surface* text = TTF_RenderText_Blended(incrementValueFont, incrementValueS.c_str(), 0 ,color);
-
-    if (text)
-    {
-        incrementValueTexture = SDL_CreateTextureFromSurface(renderer, text);
-        SDL_DestroySurface(text);
-    }
-}
-
-void renderScoreText()
-{
-    if (!texture) return;
-
-    float w = 0, h = 0;
-    SDL_GetTextureSize(texture, &w, &h);
-
-    SDL_FRect dst;
-    dst.w = w;
-    dst.h = h;
-    dst.x = (WINDOW_WIDTH - w) / 2; // centrowanie
-    dst.y = 50;
-
-    SDL_RenderTexture(renderer, texture, NULL, &dst);
-}
-
-void renderIncrementValueText()
-{
-    if (!texture) return;
-
-    float w = 0, h = 0;
-    SDL_GetTextureSize(incrementValueTexture, &w, &h);
-
-    SDL_FRect dst;
-    dst.w = w;
-    dst.h = h;
-    dst.x = (WINDOW_WIDTH - w) / 2; // Centrowanie
-    dst.y = 100;  // Poni¿ej g³ównego tekstu, zmniejszaj¹c y
-
-    SDL_RenderTexture(renderer, incrementValueTexture, NULL, &dst);
-}
-
-void renderClickField()
-{
-    float clickFieldSizePercentage = 0.75f; // wielkoœæ pola
-    float squareSize = std::min(WINDOW_WIDTH, WINDOW_HEIGHT) * clickFieldSizePercentage; // obliczanie wielkoœci wzglêdem ekranu (float)
-    clickField = { (WINDOW_WIDTH - squareSize) / 2.0f, (WINDOW_HEIGHT - squareSize) / 2.0f, squareSize, squareSize }; // pozycja jako float
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-    SDL_RenderFillRect(renderer, &clickField);
-}
-
-/* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
 {
-    //SDL_SetAppMetadata("Example Renderer Clear", "1.0", "com.example.renderer-clear");
+    loadGameState(gameState);
+
+    SDL_SetAppMetadata("Example Renderer Clear", "1.0", "com.example.renderer-clear");
 
     SDL_Color color = { 255, 255, 255, SDL_ALPHA_OPAQUE };
     SDL_Surface* text;
@@ -239,33 +56,51 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
         return SDL_APP_FAILURE;
     }
 
-    if (!SDL_CreateWindowAndRenderer("Dragon Clicker", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer)) 
+    if (!SDL_CreateWindowAndRenderer("Dragon Clicker", WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer))
     {
         SDL_Log("Couldn't create window/renderer: %s", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    if (!TTF_Init()) 
+    updateDragonUpgradeToggleButtonText(renderer);
+    updateToggleButtonText(renderer);
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    if (!TTF_Init())
     {
         SDL_Log("Couldn't initialise SDL_ttf: %s\n", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    font = TTF_OpenFont("Poppins-Bold.ttf", 24.0f);
+    font = TTF_OpenFont("EagleLake-Regular.ttf", 32.0f);
     if (!font)
     {
         SDL_Log("Couldn't open font: %s\n", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    incrementValueFont = TTF_OpenFont("Poppins-Bold.ttf", 16.0f);
+    incrementValueFont = TTF_OpenFont("EagleLake-Regular.ttf", 16.0f);
     if (!incrementValueFont)
     {
         SDL_Log("Couldn't open incrementValue font: %s\n", SDL_GetError());
         return SDL_APP_FAILURE;
     }
 
-    text = TTF_RenderText_Blended(font, s_score.c_str(), 10, color);
+    HPValueFont = TTF_OpenFont("EagleLake-Regular.ttf", 24.0f);
+    if (!HPValueFont)
+    {
+        SDL_Log("Couldn't open incrementValue font: %s\n", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    upgradeValueFont = TTF_OpenFont("EagleLake-Regular.ttf", 20.0f);
+    if (!upgradeValueFont)
+    {
+        SDL_Log("Couldn't open incrementValue font: %s\n", SDL_GetError());
+        return SDL_APP_FAILURE;
+    }
+
+    text = TTF_RenderText_Blended(font, gameState.s_score.c_str(), 10, color);
     if (text)
     {
         texture = SDL_CreateTextureFromSurface(renderer, text);
@@ -278,18 +113,39 @@ SDL_AppResult SDL_AppInit(void** appstate, int argc, char* argv[])
         return SDL_APP_FAILURE;
     }
 
-    updateScoreText();
-    createButtons();
+    backgroundImage = IMG_LoadTexture(renderer, "background.jpeg");
+    dragon1 = IMG_LoadTexture(renderer, "dragon1.png");
+    dragonCoin = IMG_LoadTexture(renderer, "coin.png");
 
-    return SDL_APP_CONTINUE;  /* carry on with the program! */
+    if (!backgroundImage || !dragon1 || !dragonCoin)
+    {
+        std::cerr << "B³¹d wczytywania obrazu: " << SDL_GetError() << std::endl;
+        return SDL_APP_FAILURE;
+    }
+
+    updateScoreText();
+    updateIncrementValueText();
+    updateButtonText(renderer);
+    updateDragonButtonText(renderer);
+
+    return SDL_APP_CONTINUE;
 }
 
-/* This function runs when a new event (mouse input, keypresses, etc) occurs. */
 SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
 {
     if (event->type == SDL_EVENT_QUIT)
     {
-        return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
+        saveGameState(gameState);
+        return SDL_APP_SUCCESS;
+    }
+
+    if (event->type == SDL_EVENT_KEY_DOWN)
+    {
+        if (event->key.key == SDLK_ESCAPE)
+        {
+            saveGameState(gameState);
+            return SDL_APP_SUCCESS;
+        }
     }
 
     if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN)
@@ -297,96 +153,204 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event)
         float mouseX, mouseY;
         SDL_GetMouseState(&mouseX, &mouseY);
 
-        if (mouseX >= clickField.x && mouseX <= clickField.x + clickField.w &&
-            mouseY >= clickField.y && mouseY <= clickField.y + clickField.h)
+        if (upgradeToggleButton.isClicked(mouseX, mouseY) && isDragonUpgradeSidePanelVisible == false)
         {
-            score += incrementScore;
-            updateScoreText();
+            isSidePanelVisible = !isSidePanelVisible;
         }
 
-        for (auto& button : buttons)
+        if (dragonUpgradeToggleButton.isClicked(mouseX, mouseY) && isSidePanelVisible == false)
         {
-            if (mouseX >= button.getX() && mouseX <= button.getX() + button.getW() &&
-                mouseY >= button.getY() && mouseY <= button.getY() + button.getH())
+            isDragonUpgradeSidePanelVisible = !isDragonUpgradeSidePanelVisible;
+        }
+
+        if (isSidePanelVisible)
+        {
+            for (auto& button : gameState.buttons)
             {
-                if (!button.isObjectUpgrading)
+                if (mouseX >= button.getX() && mouseX <= button.getX() + button.getW() &&
+                    mouseY >= button.getY() && mouseY <= button.getY() + button.getH())
                 {
-                    button.isObjectUpgrading = true;
-                    UpgradeButton::lastUpdateTime = SDL_GetTicks(); // Resetujemy czas
-                    std::cout << "Ulepszanie aktywowane!" << std::endl;
+                    if (!button.isObjectUpgrading)
+                    {
+                        button.isObjectUpgrading = true;
+                        UpgradeButton::lastUpdateTime = SDL_GetTicks();
+
+                        if (gameState.score >= button.upgradeCost)
+                        {
+                            gameState.score -= button.upgradeCost;
+                            button.upgradeScoreValue();
+                            button.upgradeCost *= 1.2f;
+                        }
+                    }
+                    else
+                    {
+                        if (gameState.score < button.upgradeCost)
+                        {
+                            return SDL_APP_CONTINUE;
+                        }
+                        else if (gameState.score >= button.upgradeCost)
+                        {
+                            gameState.score -= button.upgradeCost;
+                            button.upgradeScoreValue();
+                            button.upgradeCost *= 1.2f;
+                        }
+                    }
                 }
-                else
+            }
+        }
+
+        if (isDragonUpgradeSidePanelVisible)
+        {
+            for (auto& dragonButton : gameState.dragonButtons)
+            {
+                if (mouseX >= dragonButton.getX() && mouseX <= dragonButton.getX() + dragonButton.getW() &&
+                    mouseY >= dragonButton.getY() && mouseY <= dragonButton.getY() + dragonButton.getH())
                 {
-                    if (score < button.upgradeCost)
+                    if (gameState.dragonCoins >= dragonButton.dragonUpgradeCost)
                     {
-                        return SDL_APP_CONTINUE;  /* carry on with the program! */
-                    }
-                    else if (score >= button.upgradeCost)
-                    {
-                        // Jeœli mamy wystarczaj¹co punktów na upgrade
-                        score -= button.upgradeCost;
-                        button.upgradeScoreValue(); // Zwiêkszamy incrementValue
-                        button.upgradeCost *= 1.2f;  // Zwiêkszamy koszt ulepszania
-                        std::cout << "1 - Cost: " << button.upgradeCost << " Increment value: " << button.getIncrementValue() << "\n";
+                        gameState.incrementScore *= dragonButton.multiplier;
+                        gameState.dragonCoins -= dragonButton.dragonUpgradeCost;
+                        dragonButton.dragonUpgradeCost *= 2.5f;
                     }
                 }
+            }
+        }
+
+        for (auto& dragon : gameState.dragons)
+        {
+            if (mouseX >= dragon.getX() && mouseX <= dragon.getX() + dragon.getW() &&
+                mouseY >= dragon.getY() && mouseY <= dragon.getY() + dragon.getH())
+            {
+                if (dragon.health <= 0)
+                {
+                    dragon.health = dragon.baseHealth * 1.5f;
+                    dragon.baseHealth = dragon.health;
+                    gameState.dragonCoins += dragon.dragonSlayedPrice;
+                    dragon.dragonSlayedPrice *= 1.25f;
+                }
+
+                gameState.score += gameState.incrementScore;
+                dragon.health -= gameState.incrementScore;
+                updateScoreText();
             }
         }
 
         updateScoreText();
         updateIncrementValueText();
+        updateButtonText(renderer);
+        updateDragonButtonText(renderer);
     }
 
-    return SDL_APP_CONTINUE;  /* carry on with the program! */
+    return SDL_APP_CONTINUE;
 }
 
-
-/* This function runs once per frame, and is the heart of the program. */
 SDL_AppResult SDL_AppIterate(void* appstate)
 {
     static Uint32 lastUpdateTime = SDL_GetTicks();
-
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, SDL_ALPHA_OPAQUE);
-    SDL_RenderClear(renderer);
-
-    renderClickField();
-    renderScoreText();
-    renderIncrementValueText();
-    renderButtons(renderer);
-
     Uint32 currentTime = SDL_GetTicks();
+
+    float incrementValue = incrementValueCheck();
+
+    SDL_RenderClear(renderer);
+    SDL_RenderTexture(renderer, backgroundImage, NULL, NULL);
+
+    renderDragons(renderer, gameState);
+
     if (currentTime - lastUpdateTime >= 1000)
     {
-        for (auto& button : buttons)
+        for (auto& button : gameState.buttons)
         {
             if (button.isActive())
             {
-                std::cout << "Before increment: score = " << score << ", incrementValue = " << button.getIncrementValue() << std::endl;
-                button.incrementScore(); // Zwiêkszamy wynik
-                std::cout << "After increment: score = " << score << std::endl;
+                button.incrementScore();
                 lastUpdateTime = currentTime;
             }
         }
 
+        for (auto& dragon : gameState.dragons)
+        {
+            dragon.health -= static_cast<long double>(incrementValue);
+            renderHealthBar(dragon, renderer);
+        }
+
+        lastUpdateTime = currentTime;
+
         updateScoreText();
+    }
+
+    else
+    {
+        for (auto& dragon : gameState.dragons)
+        {
+            renderHealthBar(dragon, renderer);
+        }
+    }
+
+    renderSidePanel(renderer, isSidePanelVisible, isDragonUpgradeSidePanelVisible);
+
+    if (isSidePanelVisible)
+    {
+        renderButtons(renderer, gameState);
+    }
+
+    if (isDragonUpgradeSidePanelVisible)
+    {
+        renderDragonButtons(renderer, gameState);
+    }
+
+    upgradeToggleButton.render(renderer);
+    dragonUpgradeToggleButton.render(renderer);
+
+    renderHealthValueText(renderer, gameState);
+    updateHealthValueText();
+    renderScoreText(renderer, gameState);
+    renderIncrementValueText(renderer, gameState);
+    updateButtonText(renderer);
+    renderDragonCoinText(renderer, gameState);
+    updateDragonCoinText(renderer);
+    updateDragonButtonText(renderer);
+
+    if (!gameState.lastSaveTime.empty() && currentTime - lastSaveTime >= autoSaveInterval)
+    {
+        try
+        {
+            std::time_t lastSave = parseDateTime(gameState.lastSaveTime);
+            std::time_t now = std::time(0);
+            double timeDiffSeconds = difftime(now, lastSave);
+            long double timeAFKHours = timeDiffSeconds / 3600.0f;
+
+            long double afkBonus = std::min(1000.0L, static_cast<long double>(gameState.incrementScore * timeAFKHours * 0.25f));
+            gameState.score += afkBonus;
+            updateScoreText();
+        }
+        catch (const std::runtime_error& e)
+        {
+            std::cerr << "Error calculating AFK: " << e.what() << "\n";
+        }
+
+        saveGameState(gameState);
+        lastSaveTime = currentTime;
+        gameState.lastSaveTime = getCurrentDateTime();
+    }
+
+    else if (gameState.lastSaveTime.empty())
+    {
+        gameState.lastSaveTime = getCurrentDateTime();
     }
 
     SDL_RenderPresent(renderer);
     return SDL_APP_CONTINUE;
 }
 
-/* This function runs once at shutdown. */
 void SDL_AppQuit(void* appstate, SDL_AppResult result)
 {
-    if (font)
-    {
-        TTF_CloseFont(font);
-    }
-
-    if (texture)
-    {
-        SDL_DestroyTexture(texture);
-    }
+    if (font) TTF_CloseFont(font);
+    if (texture) SDL_DestroyTexture(texture);
+    if (backgroundImage) SDL_DestroyTexture(backgroundImage);
+    if (dragon1) SDL_DestroyTexture(dragon1);
+    if (incrementValueFont) TTF_CloseFont(incrementValueFont);
+    if (HPValueFont) TTF_CloseFont(HPValueFont);
+    if (upgradeValueFont) TTF_CloseFont(upgradeValueFont);
 
     TTF_Quit();
     SDL_Quit();
